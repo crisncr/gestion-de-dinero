@@ -1,25 +1,42 @@
 import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { GlowPanel } from '../../src/GlowPanel'
+import { MonthBar } from '../../src/MonthBar'
 import { Screen } from '../../src/Screen'
 import { SpendRing } from '../../src/SpendRing'
 import { TransactionSheet } from '../../src/TransactionSheet'
 import { categoryAccent, categoryLabel, expenseCategories, incomeCategories } from '../../src/data/catalog'
 import { currencyCaption } from '../../src/data/currencies'
-import { money, monthKey, monthTitle, shortDate } from '../../src/lib/format'
+import { money, monthKey, shortDate, todayISO } from '../../src/lib/format'
 import { useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
 import type { Transaction, TxType } from '../../src/types'
 import { Button, Chip, Empty, Progress, useToast } from '../../src/ui'
 
 export default function FinanceScreen() {
-  const { household, state, stats, members, removeTransaction, refresh } = useStore()
+  const { household, state, members, removeTransaction, refresh } = useStore()
   const toast = useToast()
   const currency = household?.currency ?? 'CLP'
   const [open, setOpen] = useState(false)
   const [sheetType, setSheetType] = useState<TxType>('expense')
   const [filter, setFilter] = useState<'all' | TxType>('all')
-  const month = monthKey()
+  const [month, setMonth] = useState(monthKey())
+  const sheetDate = month === monthKey() ? todayISO() : `${month}-01`
+
+  const monthTx = useMemo(
+    () => state.transactions.filter((t) => t.householdId === household?.id && t.date.startsWith(month)),
+    [household?.id, month, state.transactions],
+  )
+  const monthIncome = monthTx.filter((t) => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
+  const monthExpenses = monthTx.filter((t) => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
+  const monthSalary = monthTx
+    .filter((t) => t.type === 'income' && t.category === 'sueldo')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const monthContributions = monthTx
+    .filter((t) => t.type === 'income' && t.category === 'aporte')
+    .reduce((sum, t) => sum + t.amount, 0)
+  const remaining = monthIncome - monthExpenses
+  const usedPct = monthIncome > 0 ? (monthExpenses / monthIncome) * 100 : monthExpenses > 0 ? 100 : 0
 
   const rows = useMemo(
     () =>
@@ -51,7 +68,6 @@ export default function FinanceScreen() {
         <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ color: colors.mint, fontSize: 11, fontFamily: fonts.semibold, letterSpacing: 1.6 }}>PULSO</Text>
           <Text style={{ color: colors.cream, fontSize: 30, fontFamily: fonts.extra, marginTop: 4 }}>Finanzas</Text>
-          <Text style={{ color: colors.mute, fontFamily: fonts.regular, marginTop: 4 }}>{monthTitle(month)}</Text>
         </View>
         <Button
           title="Registrar"
@@ -62,31 +78,32 @@ export default function FinanceScreen() {
           }}
         />
       </View>
+      <MonthBar value={month} onChange={setMonth} />
 
       <GlowPanel style={{ alignItems: 'center', paddingVertical: 22 }}>
         <SpendRing
           slices={pie.map((slice) => ({ pct: slice.pct, color: slice.color }))}
           centerLabel="Gastado este mes"
-          centerValue={money(stats.monthExpenses, currency)}
+          centerValue={money(monthExpenses, currency)}
         />
         <Text style={{ color: 'rgba(85,214,160,0.8)', fontSize: 11, fontFamily: fonts.semibold, letterSpacing: 1.4, marginTop: 14 }}>
           CARTERA VIVA
         </Text>
         <Text style={{ color: colors.cream, fontSize: 34, fontFamily: fonts.extra, marginTop: 6, letterSpacing: -0.6 }}>
-          {money(stats.remaining, currency)}
+          {money(remaining, currency)}
         </Text>
         <Text style={{ color: colors.mute, marginTop: 6, fontFamily: fonts.regular, textAlign: 'center' }}>
           {currencyCaption(currency)} · lo que entró menos lo que se gastó
         </Text>
-        {stats.monthIncome > 0 ? (
+        {monthIncome > 0 ? (
           <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
               <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular }}>Uso del mes</Text>
-              <Text style={{ color: stats.usedPct >= 80 ? colors.warn : colors.mint, fontSize: 12, fontFamily: fonts.semibold }}>
-                {Math.round(stats.usedPct)}%
+              <Text style={{ color: usedPct >= 80 ? colors.warn : colors.mint, fontSize: 12, fontFamily: fonts.semibold }}>
+                {Math.round(usedPct)}%
               </Text>
             </View>
-            <Progress value={stats.usedPct} />
+            <Progress value={usedPct} />
           </View>
         ) : null}
       </GlowPanel>
@@ -110,10 +127,10 @@ export default function FinanceScreen() {
           >
             <Text style={{ color: colors.mute, fontSize: 10, fontFamily: fonts.semibold, letterSpacing: 0.6 }}>Ingresos</Text>
             <Text style={{ color: colors.mint, fontSize: 18, fontFamily: fonts.bold, marginTop: 8 }} numberOfLines={1}>
-              {money(stats.monthIncome, currency)}
+              {money(monthIncome, currency)}
             </Text>
             <Text style={{ color: colors.mute, fontSize: 11, fontFamily: fonts.regular, marginTop: 8 }}>
-              Sueldo {money(stats.monthSalary, currency)}
+              Sueldo {money(monthSalary, currency)}
             </Text>
           </View>
         </Pressable>
@@ -135,10 +152,10 @@ export default function FinanceScreen() {
           >
             <Text style={{ color: colors.mute, fontSize: 10, fontFamily: fonts.semibold, letterSpacing: 0.6 }}>Gastos</Text>
             <Text style={{ color: colors.cream, fontSize: 18, fontFamily: fonts.bold, marginTop: 8 }} numberOfLines={1}>
-              {money(stats.monthExpenses, currency)}
+              {money(monthExpenses, currency)}
             </Text>
             <Text style={{ color: colors.mute, fontSize: 11, fontFamily: fonts.regular, marginTop: 8 }}>
-              Ahorro {money(stats.savings, currency)}
+              Queda {money(remaining, currency)}
             </Text>
           </View>
         </Pressable>
@@ -158,9 +175,9 @@ export default function FinanceScreen() {
           El sueldo no es fijo: cada mes registras el que llegó, y un familiar puede aportar el suyo.
         </Text>
         {[
-          ['Sueldo', stats.monthSalary, colors.mint],
-          ['Aporte familiar', stats.monthContributions, '#A78BFA'],
-          ['Otros ingresos', Math.max(0, stats.monthIncome - stats.monthSalary - stats.monthContributions), '#5B8CFF'],
+          ['Sueldo', monthSalary, colors.mint],
+          ['Aporte familiar', monthContributions, '#A78BFA'],
+          ['Otros ingresos', Math.max(0, monthIncome - monthSalary - monthContributions), '#5B8CFF'],
         ].map(([label, value, accent]) => (
           <View key={String(label)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -217,7 +234,7 @@ export default function FinanceScreen() {
           padding: 18,
         }}
       >
-        <Text style={{ color: colors.cream, fontFamily: fonts.bold, marginBottom: 4 }}>Historial</Text>
+        <Text style={{ color: colors.cream, fontFamily: fonts.bold, marginBottom: 4 }}>Movimientos del mes</Text>
         {rows.length === 0 ? (
           <Empty title="Sin movimientos" text="Registra un ingreso o gasto para este mes." />
         ) : (
@@ -236,7 +253,7 @@ export default function FinanceScreen() {
         )}
       </View>
 
-      <TransactionSheet open={open} initialType={sheetType} onClose={() => setOpen(false)} />
+      <TransactionSheet open={open} initialType={sheetType} initialDate={sheetDate} onClose={() => setOpen(false)} />
     </Screen>
   )
 }

@@ -2,9 +2,10 @@ import { Check, Search } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { GlowPanel } from '../../src/GlowPanel'
+import { MonthBar } from '../../src/MonthBar'
 import { Screen } from '../../src/Screen'
 import { categoryLabel, shoppingCategories } from '../../src/data/catalog'
-import { money } from '../../src/lib/format'
+import { money, monthKey, stampForMonth } from '../../src/lib/format'
 import { useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
 import { Button, Chip, Empty, Field, Progress, Sheet, useToast } from '../../src/ui'
@@ -19,7 +20,7 @@ const shopAccent: Record<string, string> = {
 }
 
 export default function ShoppingScreen() {
-  const { household, state, stats, addShopping, toggleShopping, removeShopping, clearPurchased, refresh } = useStore()
+  const { household, state, addShopping, toggleShopping, removeShopping, clearPurchased, refresh } = useStore()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
@@ -29,18 +30,22 @@ export default function ShoppingScreen() {
   const [price, setPrice] = useState('')
   const currency = household?.currency ?? 'CLP'
   const addCategory = filter === 'all' ? 'mercado' : filter
+  const [month, setMonth] = useState(monthKey())
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase()
     return state.shopping
-      .filter((s) => s.householdId === household?.id)
+      .filter((s) => s.householdId === household?.id && s.createdAt.slice(0, 7) === month)
       .filter((s) => (filter === 'all' ? true : s.category === filter))
       .filter((s) => (q ? s.name.toLowerCase().includes(q) : true))
       .sort((a, b) => Number(a.purchased) - Number(b.purchased))
-  }, [filter, household?.id, query, state.shopping])
+  }, [filter, household?.id, month, query, state.shopping])
 
   const pendingInView = items.filter((item) => !item.purchased)
   const pendingTotal = pendingInView.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const monthIncome = state.transactions
+    .filter((t) => t.householdId === household?.id && t.type === 'income' && t.date.startsWith(month))
+    .reduce((sum, t) => sum + t.amount, 0)
   const filterLabel = filter === 'all' ? 'todos' : categoryLabel(filter, shoppingCategories).toLowerCase()
 
   return (
@@ -49,12 +54,13 @@ export default function ShoppingScreen() {
         <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={{ color: colors.mint, fontSize: 11, fontFamily: fonts.semibold, letterSpacing: 1.6 }}>LISTA</Text>
           <Text style={{ color: colors.cream, fontSize: 30, fontFamily: fonts.extra, marginTop: 4 }}>Compras</Text>
-          <Text style={{ color: colors.mute, fontFamily: fonts.regular, marginTop: 4 }}>
+          <Text style={{ color: colors.mute, fontFamily: fonts.regular, marginTop: 8 }}>
             {household?.name ?? 'Tu hogar'} · {pendingInView.length} pendiente{pendingInView.length === 1 ? '' : 's'}
           </Text>
         </View>
         <Button title="+ Producto" size="sm" onPress={() => setOpen(true)} />
       </View>
+      <MonthBar value={month} onChange={setMonth} />
 
       <GlowPanel>
         <Text style={{ color: 'rgba(85,214,160,0.8)', fontSize: 11, fontFamily: fonts.semibold, letterSpacing: 1.4 }}>
@@ -67,7 +73,7 @@ export default function ShoppingScreen() {
           {pendingInView.length} de {filterLabel} · al marcarlos comprados salen de la cartera
         </Text>
         <View style={{ marginTop: 14 }}>
-          <Progress value={stats.monthIncome > 0 ? (stats.shoppingTotal / stats.monthIncome) * 100 : 0} />
+          <Progress value={monthIncome > 0 ? (pendingTotal / monthIncome) * 100 : 0} />
         </View>
       </GlowPanel>
 
@@ -91,8 +97,8 @@ export default function ShoppingScreen() {
       >
         {items.length === 0 ? (
           <Empty
-            title={query ? 'Nada coincide' : filter === 'all' ? 'Lista vacía' : `Sin productos de ${filterLabel}`}
-            text={filter === 'all' ? 'Agrega productos para el supermercado.' : `Agrega otro producto de ${filterLabel}.`}
+            title={query ? 'Nada coincide' : filter === 'all' ? 'Este mes no tiene compras' : `Sin productos de ${filterLabel}`}
+            text={filter === 'all' ? 'Cada mes tiene su propia lista. Agrega lo de este mes.' : `Agrega otro producto de ${filterLabel}.`}
           />
         ) : (
           items.map((item, index) => {
@@ -165,7 +171,11 @@ export default function ShoppingScreen() {
       </View>
 
       {items.some((i) => i.purchased) ? (
-        <Button title="Quitar productos comprados" variant="secondary" onPress={clearPurchased} />
+        <Button
+          title="Quitar productos comprados"
+          variant="secondary"
+          onPress={() => clearPurchased(items.filter((item) => item.purchased).map((item) => item.id))}
+        />
       ) : null}
 
       <Sheet
@@ -185,7 +195,13 @@ export default function ShoppingScreen() {
           title="Guardar"
           onPress={() => {
             if (name.trim().length < 2) return toast.push('Escribe el producto')
-            addShopping({ name, category: addCategory, quantity: Number(qty) || 1, price: Number(price) || 0 })
+            addShopping({
+              name,
+              category: addCategory,
+              quantity: Number(qty) || 1,
+              price: Number(price) || 0,
+              createdAt: stampForMonth(month),
+            })
             setName('')
             setPrice('')
             setOpen(false)

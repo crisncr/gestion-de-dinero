@@ -13,10 +13,12 @@ import { Button, Chip, Field, Sheet, useToast } from './ui'
 export function TransactionSheet({
   open,
   initialType = 'expense',
+  initialDate,
   onClose,
 }: {
   open: boolean
   initialType?: TxType
+  initialDate?: string
   onClose: () => void
 }) {
   const { addTransaction, members, membership } = useStore()
@@ -34,9 +36,9 @@ export function TransactionSheet({
     setCategory(initialType === 'income' ? 'sueldo' : 'alimentacion')
     setAmount('')
     setNote('')
-    setDate(todayISO())
+    setDate(initialDate || todayISO())
     setMemberId(membership?.id ?? '')
-  }, [initialType, membership?.id, open])
+  }, [initialDate, initialType, membership?.id, open])
 
   const cats = type === 'income' ? incomeCategories : expenseCategories
 

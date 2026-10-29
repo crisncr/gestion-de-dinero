@@ -12,6 +12,15 @@ export function monthKey(iso = todayISO()) {
   return iso.slice(0, 7)
 }
 
+export function shiftMonth(key: string, delta: number) {
+  return monthKey(addMonths(`${key}-01`, delta))
+}
+
+export function stampForMonth(key: string) {
+  if (key === monthKey()) return new Date().toISOString()
+  return new Date(`${key}-01T15:00:00.000Z`).toISOString()
+}
+
 export function parseISO(iso: string) {
   return new Date(`${iso.slice(0, 10)}T12:00:00`)
 }

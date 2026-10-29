@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { requireMembership } from '../auth.js'
 import { HttpError } from '../http.js'
-import { shoppingExpenseCategory, todayISO } from '../logic.js'
+import { shoppingExpenseCategory } from '../logic.js'
 import { prisma } from '../prisma.js'
 import { commitSnapshot } from '../snapshot.js'
 
@@ -22,6 +22,10 @@ const shoppingSchema = z.object({
   category: z.string().trim().min(1),
   quantity: z.number().optional(),
   price: z.number().optional(),
+  createdAt: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), 'Fecha inválida')
+    .optional(),
 })
 
 export async function moneyRoutes(app: FastifyInstance) {
@@ -87,6 +91,7 @@ export async function moneyRoutes(app: FastifyInstance) {
         category: input.category,
         quantity: Math.max(1, input.quantity ?? 1),
         price: Math.max(0, input.price ?? 0),
+        ...(input.createdAt ? { createdAt: new Date(input.createdAt) } : {}),
       },
     })
     return { id: row.id, ...(await commitSnapshot(user.id, household.id)) }
@@ -118,6 +123,7 @@ export async function moneyRoutes(app: FastifyInstance) {
 
     if (!item.purchased) {
       const total = item.price * item.quantity
+      const boughtOn = item.createdAt.toISOString().slice(0, 10)
       const tx =
         total > 0
           ? await prisma.transaction.create({
@@ -128,7 +134,7 @@ export async function moneyRoutes(app: FastifyInstance) {
                 amount: total,
                 category: shoppingExpenseCategory(item.category),
                 description: item.name,
-                date: todayISO(),
+                date: boughtOn,
               },
             })
           : null
@@ -161,14 +167,25 @@ export async function moneyRoutes(app: FastifyInstance) {
 
   app.post('/shopping/clear-purchased', async (request) => {
     const { user, household } = await requireMembership(request)
+    const input = z.object({ itemIds: z.array(z.string().uuid()).optional() }).parse(request.body ?? {})
     const spent = await prisma.shoppingItem.findMany({
-      where: { householdId: household.id, purchased: true },
+      where: {
+        householdId: household.id,
+        purchased: true,
+        ...(input.itemIds?.length ? { id: { in: input.itemIds } } : {}),
+      },
     })
     const txIds = spent.map((row) => row.transactionId).filter((id): id is string => Boolean(id))
     if (txIds.length) {
       await prisma.transaction.deleteMany({ where: { id: { in: txIds } } })
     }
-    await prisma.shoppingItem.deleteMany({ where: { householdId: household.id, purchased: true } })
+    await prisma.shoppingItem.deleteMany({
+      where: {
+        householdId: household.id,
+        purchased: true,
+        ...(input.itemIds?.length ? { id: { in: input.itemIds } } : {}),
+      },
+    })
     return commitSnapshot(user.id, household.id)
   })
 }

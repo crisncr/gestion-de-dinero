@@ -64,6 +64,7 @@ type ShoppingInput = {
   category: string
   quantity: number
   price: number
+  createdAt?: string
 }
 
 type PetInput = {
@@ -150,7 +151,7 @@ type StoreValue = {
   updateShopping: (id: string, input: ShoppingInput) => void
   toggleShopping: (id: string) => void
   removeShopping: (id: string) => void
-  clearPurchased: () => void
+  clearPurchased: (itemIds?: string[]) => void
   addPet: (input: PetInput) => {
     id: string
     inherited: Array<'comida' | 'arena'>
@@ -256,7 +257,7 @@ function computeStats(state: AppState): HouseholdStats {
     .filter((t) => t.type === 'income' && t.category === 'aporte')
     .reduce((s, t) => s + t.amount, 0)
   const shopping = state.shopping.filter((s) => s.householdId === household.id)
-  const pending = shopping.filter((s) => !s.purchased)
+  const pending = shopping.filter((s) => !s.purchased && s.createdAt.slice(0, 7) === month)
 
   return {
     monthIncome,
@@ -936,7 +937,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           price: Math.max(0, input.price),
           purchased: false,
           transactionId: null,
-          createdAt: new Date().toISOString(),
+          createdAt: input.createdAt || new Date().toISOString(),
         }
         patch((prev) => ({ ...prev, shopping: [row, ...prev.shopping] }))
         if (cloud) {
@@ -975,6 +976,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (!item.purchased) {
             const total = item.price * item.quantity
             const txId = total > 0 ? uid() : null
+            const boughtOn = item.createdAt.slice(0, 10)
             patch((prev) => ({
               ...prev,
               shopping: prev.shopping.map((s) =>
@@ -990,7 +992,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                       amount: total,
                       category: shoppingExpenseCategory(item.category),
                       description: item.name,
-                      date: todayISO(),
+                      date: boughtOn,
                       createdAt: new Date().toISOString(),
                     },
                     ...prev.transactions,
@@ -1016,6 +1018,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (!item.purchased) {
           const total = item.price * item.quantity
           const txId = total > 0 ? uid() : null
+          const boughtOn = item.createdAt.slice(0, 10)
           patch((prev) => ({
             ...prev,
             shopping: prev.shopping.map((s) =>
@@ -1033,7 +1036,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                     amount: total,
                     category: shoppingExpenseCategory(item.category),
                     description: item.name,
-                    date: todayISO(),
+                    date: boughtOn,
                     createdAt: new Date().toISOString(),
                   },
                   ...prev.transactions,
@@ -1068,16 +1071,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }))
         if (cloud) void saveCloud(`/shopping/${real}`, { method: 'DELETE' })
       },
-      clearPurchased: () => {
+      clearPurchased: (itemIds) => {
         const { household } = requireMembership(state)
-        const spent = state.shopping.filter((s) => s.householdId === household.id && s.purchased)
+        const wanted = itemIds ? new Set(itemIds) : null
+        const spent = state.shopping.filter(
+          (s) => s.householdId === household.id && s.purchased && (!wanted || wanted.has(s.id)),
+        )
         const txIds = new Set(spent.map((s) => s.transactionId).filter((value): value is string => Boolean(value)))
         patch((prev) => ({
           ...prev,
-          shopping: prev.shopping.filter((s) => !(s.householdId === household.id && s.purchased)),
+          shopping: prev.shopping.filter(
+            (s) => !(s.householdId === household.id && s.purchased && (!wanted || wanted.has(s.id))),
+          ),
           transactions: prev.transactions.filter((t) => !txIds.has(t.id)),
         }))
-        if (cloud) void saveCloud('/shopping/clear-purchased', { method: 'POST', body: {} })
+        if (cloud) {
+          void saveCloud('/shopping/clear-purchased', {
+            method: 'POST',
+            body: { itemIds: spent.map((item) => resolveId(item.id)) },
+          })
+        }
       },
       addPet: (input) => {
         const { household } = requireMembership(state)
