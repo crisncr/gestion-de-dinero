@@ -22,6 +22,7 @@ const careSchema = z.object({
   date: z.string().trim().min(8),
   amount: z.number().nullable().optional(),
   nextDate: z.string().nullable().optional(),
+  paidOn: z.string().nullable().optional(),
   petIds: z.array(z.string()).optional(),
 })
 
@@ -193,6 +194,7 @@ async function saveCare({
   if (!selected.length) throw new HttpError(400, 'Elige al menos una mascota')
   const amount = input.amount && input.amount > 0 ? input.amount : null
   const nextDate = input.nextDate || null
+  const paidOn = (input.paidOn || input.date).slice(0, 10)
   const note = input.note?.trim() || ''
   const names = joinPetNames(householdPets, selected)
   const description = note
@@ -213,7 +215,7 @@ async function saveCare({
         data: {
           amount,
           description,
-          date: input.date,
+          date: paidOn,
           category: 'mascotas',
           type: 'expense',
         },
@@ -228,7 +230,7 @@ async function saveCare({
           amount,
           category: 'mascotas',
           description,
-          date: input.date,
+          date: paidOn,
         },
       })
       transactionId = tx.id

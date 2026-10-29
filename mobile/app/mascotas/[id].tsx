@@ -341,15 +341,25 @@ export default function PetDetailScreen() {
 }
 
 function CareRow({ item, pets, currency }: { item: PetCare; pets: { id: string; name: string }[]; currency: string }) {
+  const { state } = useStore()
   const ids = petIdsOf(item)
   const shared = ids.length > 1 ? `Para ${joinPetNames(pets, ids)}` : ''
+  const paid = item.transactionId ? state.transactions.find((row) => row.id === item.transactionId)?.date : ''
+  const when =
+    item.kind === 'vacuna'
+      ? `Aplicada ${shortDate(item.date)}${item.amount ? ` · pagado ${shortDate(paid || item.date)}` : ''}`
+      : shortDate(item.date)
   return (
     <View style={{ paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 8 }}>
       <Text style={{ color: colors.cream, fontFamily: fonts.semibold }}>{item.note || item.kind}</Text>
       <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 3 }}>
-        {shortDate(item.date)}
+        {when}
         {item.amount ? ` · ${money(item.amount, currency)}` : ''}
-        {item.nextDate ? ` · reponer ${shortDate(item.nextDate)}` : ''}
+        {item.nextDate
+          ? item.kind === 'vacuna'
+            ? ` · próxima ${shortDate(item.nextDate)}`
+            : ` · reponer ${shortDate(item.nextDate)}`
+          : ''}
         {shared ? ` · ${shared}` : ''}
       </Text>
     </View>

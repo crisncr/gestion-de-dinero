@@ -1239,6 +1239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (selected.length === 0) throw new Error('Elige al menos una mascota')
         const amount = input.amount && input.amount > 0 ? input.amount : null
         const nextDate = input.nextDate || null
+        const paidOn = (input.paidOn || input.date).slice(0, 10)
         const note = input.note.trim()
         const names = joinPetNames(householdPets, selected)
         const kindLabel = careKinds.find((item) => item.id === input.kind)?.label ?? 'Cuidado'
@@ -1276,7 +1277,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   amount,
                   category: 'mascotas',
                   description,
-                  date: input.date,
+                  date: paidOn,
                   createdAt: new Date().toISOString(),
                 },
                 ...prev.transactions,
@@ -1304,6 +1305,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (selected.length === 0) throw new Error('Elige al menos una mascota')
         const amount = input.amount && input.amount > 0 ? input.amount : null
         const nextDate = input.nextDate || null
+        const paidOn = (input.paidOn || input.date).slice(0, 10)
         const note = input.note.trim()
         const names = joinPetNames(householdPets, selected)
         const kindLabel = careKinds.find((item) => item.id === input.kind)?.label ?? 'Cuidado'
@@ -1328,7 +1330,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                     amount,
                     category: 'mascotas',
                     description,
-                    date: input.date,
+                    date: paidOn,
                     createdAt:
                       prev.transactions.find((t) => t.id === current.transactionId)?.createdAt ??
                       new Date().toISOString(),

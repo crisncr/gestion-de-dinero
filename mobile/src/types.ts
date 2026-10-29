@@ -102,6 +102,7 @@ export type PetCareInput = {
   date: string
   amount?: number | null
   nextDate?: string | null
+  paidOn?: string | null
   petIds?: string[]
 }
 

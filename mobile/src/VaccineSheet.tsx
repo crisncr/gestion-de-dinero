@@ -24,23 +24,29 @@ export function VaccineSheet({
   const latest = pet ? latestCare(caresForPet(state.petCares, pet.id), 'vacuna') : null
   const [name, setName] = useState('')
   const [applied, setApplied] = useState(todayISO())
+  const [paidOn, setPaidOn] = useState(todayISO())
   const [next, setNext] = useState('')
   const [price, setPrice] = useState('')
 
   useEffect(() => {
     if (!open || !pet) return
     if (latest) {
+      const paid = latest.transactionId
+        ? state.transactions.find((row) => row.id === latest.transactionId)?.date
+        : ''
       setName(latest.note)
       setApplied(latest.date || todayISO())
+      setPaidOn(paid || latest.date || todayISO())
       setNext(latest.nextDate || pet.nextVaccine || '')
       setPrice(latest.amount ? String(latest.amount) : '')
       return
     }
     setName('')
     setApplied(todayISO())
+    setPaidOn(todayISO())
     setNext(pet.nextVaccine || '')
     setPrice('')
-  }, [latest?.id, open, pet?.id])
+  }, [latest?.id, latest?.transactionId, open, pet?.id])
 
   if (!pet) return null
 
@@ -56,10 +62,11 @@ export function VaccineSheet({
         presets={datePresets('nextShot')}
       />
       <Field label={`Costo (${currency})`} keyboardType="numeric" value={price} onChangeText={setPrice} />
+      <DatePickerField label="Cuándo se pagó" value={paidOn} onChange={setPaidOn} presets={datePresets('event')} />
       <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular }}>
         {next
-          ? `La próxima dosis sale como aviso el ${shortDate(next)} en Inicio, Avisos y Calendario.`
-          : 'Si pones próxima dosis, se crea un aviso. El costo, si lo hay, entra al gasto del hogar.'}
+          ? `La próxima dosis sale como aviso el ${shortDate(next)}. El costo se descuenta el día en que se pagó.`
+          : 'La fecha aplicada queda en la ficha. El costo se descuenta en el mes en que se pagó.'}
       </Text>
       <Button
         title={latest ? 'Guardar cambios' : 'Guardar vacuna'}
@@ -75,12 +82,13 @@ export function VaccineSheet({
             date: applied || todayISO(),
             amount: amount > 0 ? amount : null,
             nextDate: next || null,
+            paidOn: amount > 0 ? paidOn || todayISO() : null,
             petIds: [pet.id],
           }
           if (latest) updatePetCare(latest.id, payload)
           else addPetCare(pet.id, payload)
           onClose()
-          const spent = amount > 0 ? ` El gasto quedó en ${monthTitle(monthKey(payload.date))}.` : ''
+          const spent = amount > 0 ? ` Pagado el ${shortDate(paidOn)}, en ${monthTitle(monthKey(paidOn))}.` : ''
           toast.push(
             next
               ? `Aviso el ${shortDate(next)}.${spent}`
