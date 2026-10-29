@@ -287,7 +287,7 @@ export default function HomeScreen() {
             </Text>
             <Text style={{ color: colors.cream, fontFamily: fonts.bold, fontSize: 16, marginTop: 4 }}>Próximos</Text>
           </View>
-          <Pressable onPress={() => router.push('/calendario')}>
+          <Pressable onPress={() => router.push('/notificaciones')}>
             <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver todos</Text>
           </Pressable>
         </View>

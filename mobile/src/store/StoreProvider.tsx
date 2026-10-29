@@ -13,7 +13,7 @@ import { careKinds, shoppingExpenseCategory } from '../data/catalog'
 import { isCurrency } from '../data/currencies'
 import { hashPassword } from '../lib/crypto'
 import { isAdultBirthDate, UNDERAGE_MESSAGE } from '../lib/age'
-import { addDays, daysBetween, monthKey, todayISO } from '../lib/format'
+import { daysBetween, monthKey, todayISO } from '../lib/format'
 import { joinPetNames, latestSpeciesSupply, petIdsOf } from '../lib/pets'
 import { collectReminders } from '../lib/reminders'
 import { inviteCode, uid } from '../lib/ids'
@@ -209,24 +209,7 @@ function userHouseholds(state: AppState, userId: string) {
 }
 
 function buildUpcoming(state: AppState, householdId: string): UpcomingItem[] {
-  const today = todayISO()
-  const horizon = addDays(today, 90)
-  const from = `${monthKey(today)}-01`
-  const items = collectReminders(state, householdId).filter((item) => item.date >= from && item.date <= horizon)
-  const pending = state.shopping.filter(
-    (s) => s.householdId === householdId && !s.purchased && s.createdAt.slice(0, 7) === monthKey(today),
-  )
-  if (pending.length > 0) {
-    items.push({
-      id: 'shopping-pending',
-      title: 'Compras pendientes',
-      date: today,
-      kind: 'shopping',
-      meta: `${pending.length} producto${pending.length === 1 ? '' : 's'}`,
-      href: '/compras',
-    })
-  }
-  return items.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)).slice(0, 20)
+  return collectReminders(state, householdId)
 }
 
 function computeStats(state: AppState): HouseholdStats {
