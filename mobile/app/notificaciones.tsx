@@ -29,10 +29,10 @@ export default function NotificationsScreen() {
         action={<Button title="+ Aviso" size="sm" onPress={() => setOpen(true)} />}
       />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
-        Aquí están todos, cada uno con su fecha. El calendario solo muestra un día.
+        Aquí están todos, cada uno con su fecha.
       </Text>
       <Pressable onPress={() => router.push('/calendario')}>
-        <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver el mes en el calendario</Text>
+        <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver avisos por fecha</Text>
       </Pressable>
       <Card>
         {items.length === 0 ? (

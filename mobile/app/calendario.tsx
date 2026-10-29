@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BackHeader } from '../src/BackHeader'
 import { Screen } from '../src/Screen'
-import { longDate, parseISO, todayISO } from '../src/lib/format'
-import { collectReminders, reminderDates, remindersForDay } from '../src/lib/reminders'
+import { longDate, monthKey, monthTitle, parseISO, todayISO } from '../src/lib/format'
+import { collectReminders, reminderDates } from '../src/lib/reminders'
 import { useStore } from '../src/store/StoreProvider'
 import { colors, fonts } from '../src/theme'
 import type { EventKind } from '../src/types'
@@ -29,29 +29,50 @@ export default function CalendarScreen() {
   const today = todayISO()
   const initial = parseISO(today)
   const [cursor, setCursor] = useState({ y: initial.getFullYear(), m: initial.getMonth() })
-  const [selected, setSelected] = useState(today)
+  const [selected, setSelected] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const days = useMemo(() => monthMatrix(cursor.y, cursor.m), [cursor])
+  const month = `${cursor.y}-${String(cursor.m + 1).padStart(2, '0')}`
   const reminders = useMemo(
     () => (household ? collectReminders(state, household.id) : []),
     [household?.id, state],
   )
   const marked = useMemo(() => reminderDates(reminders), [reminders])
-  const events = state.events.filter((e) => e.householdId === household?.id && e.date === selected)
-  const extras = remindersForDay(reminders, selected).filter((item) => !item.id.startsWith('event-'))
-  const titleMonth = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' }).format(new Date(cursor.y, cursor.m, 1))
+  const visible = reminders
+    .filter((item) => item.date.startsWith(month))
+    .filter((item) => (selected ? item.date === selected : true))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title))
+  const titleMonth = monthTitle(month)
+
+  const shiftMonth = (delta: number) => {
+    setSelected(null)
+    setCursor((c) => {
+      const next = c.m + delta
+      if (next < 0) return { y: c.y - 1, m: 11 }
+      if (next > 11) return { y: c.y + 1, m: 0 }
+      return { y: c.y, m: next }
+    })
+  }
+
+  const pickDay = (iso: string) => {
+    const picked = parseISO(iso)
+    setCursor({ y: picked.getFullYear(), m: picked.getMonth() })
+    setSelected((current) => (current === iso ? null : iso))
+  }
 
   return (
     <Screen>
-      <BackHeader title="Calendario" action={<Button title="+ Aviso" onPress={() => setOpen(true)} />} />
+      <BackHeader title="Avisos por fecha" action={<Button title="+ Aviso" onPress={() => setOpen(true)} />} />
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
-          <Pressable onPress={() => setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}>
+          <Pressable onPress={() => shiftMonth(-1)}>
             <Text style={{ color: colors.mute }}>Anterior</Text>
           </Pressable>
-          <Text style={{ color: colors.cream, fontWeight: '700', textTransform: 'capitalize' }}>{titleMonth}</Text>
-          <Pressable onPress={() => setCursor((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}>
+          <Pressable onPress={() => setSelected(null)}>
+            <Text style={{ color: colors.cream, fontWeight: '700', textTransform: 'capitalize' }}>{titleMonth}</Text>
+          </Pressable>
+          <Pressable onPress={() => shiftMonth(1)}>
             <Text style={{ color: colors.mute }}>Siguiente</Text>
           </Pressable>
         </View>
@@ -67,7 +88,7 @@ export default function CalendarScreen() {
             return (
               <Pressable
                 key={cell.iso}
-                onPress={() => setSelected(cell.iso)}
+                onPress={() => pickDay(cell.iso)}
                 style={{
                   width: '14.28%',
                   height: 42,
@@ -99,26 +120,37 @@ export default function CalendarScreen() {
         </View>
       </Card>
       <Card>
-        <Text style={{ color: colors.cream, fontWeight: '700', textTransform: 'capitalize' }}>{longDate(selected)}</Text>
-        {events.length === 0 && extras.length === 0 ? (
-          <Text style={{ color: colors.mute, marginTop: 10 }}>No hay acontecimientos este día.</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <Text style={{ color: colors.cream, fontFamily: fonts.bold, textTransform: 'capitalize', flex: 1 }}>
+            {selected ? longDate(selected) : `Todo ${titleMonth}`}
+          </Text>
+          {selected ? (
+            <Pressable onPress={() => setSelected(null)}>
+              <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Mes completo</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {visible.length === 0 ? (
+          <Text style={{ color: colors.mute, marginTop: 10 }}>
+            {selected ? 'Este día no tiene avisos.' : 'Este mes no tiene avisos.'}
+          </Text>
         ) : (
-          <>
-            {events.map((event) => (
-              <View key={event.id} style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line, flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: colors.cream }}>{event.title}</Text>
-                <Pressable onPress={() => removeEvent(event.id)}><Text style={{ color: colors.danger }}>Quitar</Text></Pressable>
-              </View>
-            ))}
-            {extras.map((item) => (
-              <View key={item.id} style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line }}>
+          visible.map((item) => (
+            <View key={item.id} style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.line, flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.cream, fontFamily: fonts.semibold }}>{item.title}</Text>
-                <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
-                  {item.meta}
+                <Text style={{ color: colors.mint, fontSize: 12, fontFamily: fonts.semibold, marginTop: 3, textTransform: 'capitalize' }}>
+                  {longDate(item.date)}
                 </Text>
+                <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>{item.meta}</Text>
               </View>
-            ))}
-          </>
+              {item.id.startsWith('event-') ? (
+                <Pressable onPress={() => removeEvent(item.id.slice('event-'.length))}>
+                  <Text style={{ color: colors.danger, fontFamily: fonts.semibold }}>Quitar</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ))
         )}
       </Card>
       <Sheet open={open} title="Nuevo recordatorio" onClose={() => setOpen(false)}>
@@ -127,7 +159,7 @@ export default function CalendarScreen() {
           title="Guardar"
           onPress={() => {
             if (title.trim().length < 2) return toast.push('Escribe un título')
-            addEvent({ title, date: selected, kind: 'other' as EventKind, note: '' })
+            addEvent({ title, date: selected || (month === monthKey() ? today : `${month}-01`), kind: 'other' as EventKind, note: '' })
             setTitle('')
             setOpen(false)
             toast.push('Aviso creado en ese día')
