@@ -195,6 +195,9 @@ async function saveCare({
   const amount = input.amount && input.amount > 0 ? input.amount : null
   const nextDate = input.nextDate || null
   const paidOn = (input.paidOn || input.date).slice(0, 10)
+  if (nextDate && nextDate.slice(0, 10) <= input.date.slice(0, 10)) {
+    throw new HttpError(400, 'La fecha siguiente tiene que ser después de la primera.')
+  }
   const note = input.note?.trim() || ''
   const names = joinPetNames(householdPets, selected)
   const description = note

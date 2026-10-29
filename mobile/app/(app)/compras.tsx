@@ -6,7 +6,7 @@ import { GlowPanel } from '../../src/GlowPanel'
 import { MonthBar } from '../../src/MonthBar'
 import { Screen } from '../../src/Screen'
 import { categoryLabel, shoppingCategories } from '../../src/data/catalog'
-import { money, monthKey, stampOnDate, todayISO } from '../../src/lib/format'
+import { money, monthKey, shoppingCharge, stampOnDate, todayISO } from '../../src/lib/format'
 import { useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
 import { Button, Chip, Empty, Field, Progress, Sheet, useToast } from '../../src/ui'
@@ -29,6 +29,7 @@ export default function ShoppingScreen() {
   const [query, setQuery] = useState('')
   const [qty, setQty] = useState('1')
   const [price, setPrice] = useState('')
+  const [offer, setOffer] = useState('')
   const [itemDate, setItemDate] = useState(todayISO())
   const currency = household?.currency ?? 'CLP'
   const addCategory = filter === 'all' ? 'mercado' : filter
@@ -44,7 +45,7 @@ export default function ShoppingScreen() {
   }, [filter, household?.id, month, query, state.shopping])
 
   const pendingInView = items.filter((item) => !item.purchased)
-  const pendingTotal = pendingInView.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const pendingTotal = pendingInView.reduce((sum, item) => sum + shoppingCharge(item), 0)
   const monthIncome = state.transactions
     .filter((t) => t.householdId === household?.id && t.type === 'income' && t.date.startsWith(month))
     .reduce((sum, t) => sum + t.amount, 0)
@@ -159,11 +160,16 @@ export default function ShoppingScreen() {
                     {item.name}
                   </Text>
                   <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
-                    {categoryLabel(item.category, shoppingCategories)} · ×{item.quantity}
+                    {categoryLabel(item.category, shoppingCategories)} · {money(item.price, currency)} c/u · ×{item.quantity}
                   </Text>
+                  {item.offerTotal ? (
+                    <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
+                      Oferta {money(item.offerTotal, currency)} · sin oferta {money(item.price * item.quantity, currency)}
+                    </Text>
+                  ) : null}
                 </View>
                 <Text style={{ color: item.purchased ? colors.mute : colors.cream, fontFamily: fonts.bold }}>
-                  {money(item.price * item.quantity, currency)}
+                  {money(shoppingCharge(item), currency)}
                 </Text>
                 <Pressable
                   onPress={() => {
@@ -198,25 +204,43 @@ export default function ShoppingScreen() {
         onClose={() => setOpen(false)}
       >
         <Field label="Producto" placeholder="Leche, pan, arena..." value={name} onChangeText={setName} />
+        <Field label={`Precio de cada uno (${currency})`} keyboardType="numeric" value={price} onChangeText={setPrice} />
         <Field label="Cantidad" keyboardType="numeric" value={qty} onChangeText={setQty} />
-        <Field label={`Precio (${currency})`} keyboardType="numeric" value={price} onChangeText={setPrice} />
+        <Text style={{ color: colors.cream, fontFamily: fonts.semibold }}>
+          Total {money((Number(price) || 0) * Math.max(1, Number(qty) || 1), currency)}
+        </Text>
+        <Field
+          label={`Precio de oferta (${currency}), si cambia`}
+          keyboardType="numeric"
+          placeholder="3000"
+          value={offer}
+          onChangeText={setOffer}
+        />
         <DatePickerField label="Para qué mes" value={itemDate} onChange={setItemDate} presets={datePresets('event')} />
         <Button
           title="Guardar"
           onPress={() => {
             if (name.trim().length < 2) return toast.push('Escribe el producto')
+            const unit = Number(price) || 0
+            const count = Math.max(1, Number(qty) || 1)
+            const regular = unit * count
+            const offerValue = Number(offer)
+            const offerTotal = offer.trim() && offerValue > 0 && offerValue !== regular ? offerValue : null
             addShopping({
               name,
               category: addCategory,
-              quantity: Number(qty) || 1,
-              price: Number(price) || 0,
+              quantity: count,
+              price: unit,
+              offerTotal,
               createdAt: stampOnDate(itemDate),
             })
             setMonth(monthKey(itemDate))
             setName('')
             setPrice('')
+            setOffer('')
+            setQty('1')
             setOpen(false)
-            toast.push('En la lista de ese mes. Al comprarlo el gasto queda ahí')
+            toast.push(offerTotal ? 'Guardado con el precio de oferta' : 'En la lista de ese mes. Al comprarlo el gasto queda ahí')
           }}
         />
       </Sheet>

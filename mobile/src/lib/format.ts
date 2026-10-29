@@ -16,6 +16,12 @@ export function shiftMonth(key: string, delta: number) {
   return monthKey(addMonths(`${key}-01`, delta))
 }
 
+export function shoppingCharge(item: { price: number; quantity: number; offerTotal?: number | null }) {
+  const regular = Math.max(0, item.price) * Math.max(1, item.quantity || 1)
+  if (item.offerTotal != null && item.offerTotal > 0) return item.offerTotal
+  return regular
+}
+
 export function stampOnDate(iso: string) {
   return new Date(`${iso.slice(0, 10)}T15:00:00.000Z`).toISOString()
 }

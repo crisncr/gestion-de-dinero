@@ -75,6 +75,10 @@ export function VaccineSheet({
             toast.push('Escribe la vacuna o la próxima fecha')
             return
           }
+          if (next && next.slice(0, 10) <= (applied || todayISO()).slice(0, 10)) {
+            toast.push('La próxima dosis tiene que ser después del día en que se aplicó.')
+            return
+          }
           const amount = Number(price)
           const payload = {
             kind: 'vacuna' as const,

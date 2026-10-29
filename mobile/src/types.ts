@@ -60,6 +60,7 @@ export type ShoppingItem = {
   category: string
   quantity: number
   price: number
+  offerTotal?: number | null
   purchased: boolean
   transactionId: string | null
   createdAt: string

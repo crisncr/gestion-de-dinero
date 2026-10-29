@@ -13,7 +13,7 @@ import { careKinds, shoppingExpenseCategory } from '../data/catalog'
 import { isCurrency } from '../data/currencies'
 import { hashPassword } from '../lib/crypto'
 import { isAdultBirthDate, UNDERAGE_MESSAGE } from '../lib/age'
-import { daysBetween, monthKey, todayISO } from '../lib/format'
+import { daysBetween, monthKey, shoppingCharge, todayISO } from '../lib/format'
 import { joinPetNames, latestSpeciesSupply, petIdsOf } from '../lib/pets'
 import { collectNotifications, collectReminders } from '../lib/reminders'
 import { inviteCode, uid } from '../lib/ids'
@@ -64,6 +64,7 @@ type ShoppingInput = {
   category: string
   quantity: number
   price: number
+  offerTotal?: number | null
   createdAt?: string
 }
 
@@ -260,7 +261,7 @@ function computeStats(state: AppState): HouseholdStats {
     monthSalary,
     monthContributions,
     pendingShopping: pending.length,
-    shoppingTotal: pending.reduce((s, i) => s + i.price * i.quantity, 0),
+    shoppingTotal: pending.reduce((s, i) => s + shoppingCharge(i), 0),
     upcoming: buildUpcoming(state, household.id),
     notifications: buildNotifications(state, household.id),
   }
@@ -928,6 +929,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           category: input.category,
           quantity: Math.max(1, input.quantity),
           price: Math.max(0, input.price),
+          offerTotal: input.offerTotal && input.offerTotal > 0 ? input.offerTotal : null,
           purchased: false,
           transactionId: null,
           createdAt: input.createdAt || new Date().toISOString(),
@@ -952,6 +954,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   category: input.category,
                   quantity: Math.max(1, input.quantity),
                   price: Math.max(0, input.price),
+                  offerTotal: input.offerTotal && input.offerTotal > 0 ? input.offerTotal : null,
                 }
               : s,
           ),
@@ -967,7 +970,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           )
           if (!item) return
           if (!item.purchased) {
-            const total = item.price * item.quantity
+            const total = shoppingCharge(item)
             const txId = total > 0 ? uid() : null
             const boughtOn = item.createdAt.slice(0, 10)
             patch((prev) => ({
@@ -1009,7 +1012,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const item = state.shopping.find((s) => s.id === id && s.householdId === household.id)
         if (!item) return
         if (!item.purchased) {
-          const total = item.price * item.quantity
+          const total = shoppingCharge(item)
           const txId = total > 0 ? uid() : null
           const boughtOn = item.createdAt.slice(0, 10)
           patch((prev) => ({

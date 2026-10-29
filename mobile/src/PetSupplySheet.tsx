@@ -88,6 +88,9 @@ export function PetSupplySheet({
     if (!product.trim()) return toast.push('Escribe el producto')
     const amount = Number(price)
     if (!amount) return toast.push('Ingresa el precio para sumarlo al gasto')
+    if (nextBuy && nextBuy.slice(0, 10) <= (boughtOn || todayISO()).slice(0, 10)) {
+      return toast.push('La fecha para reponer tiene que ser después de la compra.')
+    }
     const payload = {
       kind: kind as PetCareKind,
       note: product,

@@ -22,11 +22,17 @@ const shoppingSchema = z.object({
   category: z.string().trim().min(1),
   quantity: z.number().optional(),
   price: z.number().optional(),
+  offerTotal: z.number().nullable().optional(),
   createdAt: z
     .string()
     .refine((value) => !Number.isNaN(Date.parse(value)), 'Fecha inválida')
     .optional(),
 })
+
+function lineCharge(price: number, quantity: number, offerTotal?: number | null) {
+  if (offerTotal != null && offerTotal > 0) return offerTotal
+  return Math.max(0, price) * Math.max(1, quantity)
+}
 
 export async function moneyRoutes(app: FastifyInstance) {
   app.post('/transactions', async (request) => {
@@ -91,6 +97,7 @@ export async function moneyRoutes(app: FastifyInstance) {
         category: input.category,
         quantity: Math.max(1, input.quantity ?? 1),
         price: Math.max(0, input.price ?? 0),
+        offerTotal: input.offerTotal && input.offerTotal > 0 ? input.offerTotal : null,
         ...(input.createdAt ? { createdAt: new Date(input.createdAt) } : {}),
       },
     })
@@ -110,6 +117,7 @@ export async function moneyRoutes(app: FastifyInstance) {
         category: input.category,
         quantity: Math.max(1, input.quantity ?? 1),
         price: Math.max(0, input.price ?? 0),
+        offerTotal: input.offerTotal && input.offerTotal > 0 ? input.offerTotal : null,
       },
     })
     return commitSnapshot(user.id, household.id)
@@ -122,7 +130,7 @@ export async function moneyRoutes(app: FastifyInstance) {
     if (!item) throw new HttpError(404, 'Producto no encontrado')
 
     if (!item.purchased) {
-      const total = item.price * item.quantity
+      const total = lineCharge(item.price, item.quantity, item.offerTotal)
       const boughtOn = item.createdAt.toISOString().slice(0, 10)
       const tx =
         total > 0
