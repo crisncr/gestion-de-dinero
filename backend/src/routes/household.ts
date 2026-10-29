@@ -229,6 +229,7 @@ export async function householdRoutes(app: FastifyInstance) {
           category: String(row.category || 'otros'),
           quantity: Math.max(1, Number(row.quantity) || 1),
           price: Math.max(0, Number(row.price) || 0),
+          discount: Math.max(0, Number(row.discount) || 0),
           purchased: Boolean(row.purchased),
           transactionId: row.transactionId ? txMap.get(String(row.transactionId)) ?? null : null,
         },

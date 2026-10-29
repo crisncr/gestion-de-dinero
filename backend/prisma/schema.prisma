@@ -87,6 +87,7 @@ model ShoppingItem {
   category      String
   quantity      Int       @default(1)
   price         Float     @default(0)
+  discount      Float     @default(0)
   purchased     Boolean   @default(false)
   transactionId String?
   createdAt     DateTime  @default(now())

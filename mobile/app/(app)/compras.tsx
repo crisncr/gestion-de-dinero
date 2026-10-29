@@ -4,7 +4,7 @@ import { Pressable, Text, View } from 'react-native'
 import { GlowPanel } from '../../src/GlowPanel'
 import { Screen } from '../../src/Screen'
 import { categoryLabel, shoppingCategories } from '../../src/data/catalog'
-import { money } from '../../src/lib/format'
+import { money, shoppingLineTotal } from '../../src/lib/format'
 import { useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
 import { Button, Chip, Empty, Field, Progress, Sheet, useToast } from '../../src/ui'
@@ -19,14 +19,19 @@ const shopAccent: Record<string, string> = {
 }
 
 export default function ShoppingScreen() {
-  const { household, state, stats, addShopping, toggleShopping, removeShopping, clearPurchased, refresh } = useStore()
+  const { household, state, stats, addShopping, toggleShopping, removeShopping, clearPurchased, closeOrder, refresh } =
+    useStore()
   const toast = useToast()
   const [open, setOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
   const [name, setName] = useState('')
   const [filter, setFilter] = useState('all')
   const [query, setQuery] = useState('')
   const [qty, setQty] = useState('1')
   const [price, setPrice] = useState('')
+  const [discount, setDiscount] = useState('')
+  const [delivery, setDelivery] = useState('')
+  const [orderCoupon, setOrderCoupon] = useState('')
   const currency = household?.currency ?? 'CLP'
   const addCategory = filter === 'all' ? 'mercado' : filter
 
@@ -40,7 +45,11 @@ export default function ShoppingScreen() {
   }, [filter, household?.id, query, state.shopping])
 
   const pendingInView = items.filter((item) => !item.purchased)
-  const pendingTotal = pendingInView.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const pendingTotal = pendingInView.reduce(
+    (sum, item) => sum + shoppingLineTotal(item.price, item.quantity, item.discount ?? 0),
+    0,
+  )
+  const orderPay = Math.max(0, pendingTotal + (Number(delivery) || 0) - (Number(orderCoupon) || 0))
   const filterLabel = filter === 'all' ? 'todos' : categoryLabel(filter, shoppingCategories).toLowerCase()
 
   return (
@@ -64,7 +73,7 @@ export default function ShoppingScreen() {
           {money(pendingTotal, currency)}
         </Text>
         <Text style={{ color: colors.mute, marginTop: 8, fontFamily: fonts.regular, lineHeight: 18 }}>
-          {pendingInView.length} de {filterLabel} · al marcarlos comprados salen de la cartera
+          {pendingInView.length} de {filterLabel} · el cupón ya está restado del total
         </Text>
         <View style={{ marginTop: 14 }}>
           <Progress value={stats.monthIncome > 0 ? (stats.shoppingTotal / stats.monthIncome) * 100 : 0} />
@@ -72,6 +81,10 @@ export default function ShoppingScreen() {
       </GlowPanel>
 
       <Field label="Buscar" icon={Search} placeholder="Leche, arena, jabón..." value={query} onChangeText={setQuery} />
+      {pendingInView.length > 0 ? (
+        <Button title="Cerrar pedido" variant="secondary" onPress={() => setOrderOpen(true)} />
+      ) : null}
+
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         <Chip label="Todos" active={filter === 'all'} onPress={() => setFilter('all')} />
         {shoppingCategories.map((c) => (
@@ -97,6 +110,8 @@ export default function ShoppingScreen() {
         ) : (
           items.map((item, index) => {
             const accent = shopAccent[item.category] ?? colors.mint
+            const gross = item.price * item.quantity
+            const net = shoppingLineTotal(item.price, item.quantity, item.discount ?? 0)
             return (
               <View
                 key={item.id}
@@ -145,11 +160,26 @@ export default function ShoppingScreen() {
                   </Text>
                   <Text style={{ color: colors.mute, fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
                     {categoryLabel(item.category, shoppingCategories)} · ×{item.quantity}
+                    {(item.discount ?? 0) > 0 ? ` · cupón ${money(item.discount ?? 0, currency)}` : ''}
                   </Text>
                 </View>
-                <Text style={{ color: item.purchased ? colors.mute : colors.cream, fontFamily: fonts.bold }}>
-                  {money(item.price * item.quantity, currency)}
-                </Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ color: item.purchased ? colors.mute : colors.cream, fontFamily: fonts.bold }}>
+                    {money(net, currency)}
+                  </Text>
+                  {(item.discount ?? 0) > 0 ? (
+                    <Text
+                      style={{
+                        color: colors.mute,
+                        fontSize: 11,
+                        fontFamily: fonts.regular,
+                        textDecorationLine: 'line-through',
+                      }}
+                    >
+                      {money(gross, currency)}
+                    </Text>
+                  ) : null}
+                </View>
                 <Pressable
                   onPress={() => {
                     removeShopping(item.id)
@@ -181,15 +211,67 @@ export default function ShoppingScreen() {
         <Field label="Producto" placeholder="Leche, pan, arena..." value={name} onChangeText={setName} />
         <Field label="Cantidad" keyboardType="numeric" value={qty} onChangeText={setQty} />
         <Field label={`Precio (${currency})`} keyboardType="numeric" value={price} onChangeText={setPrice} />
+        <Field
+          label={`Cupón del producto (${currency})`}
+          keyboardType="numeric"
+          placeholder="0"
+          value={discount}
+          onChangeText={setDiscount}
+        />
         <Button
           title="Guardar"
           onPress={() => {
             if (name.trim().length < 2) return toast.push('Escribe el producto')
-            addShopping({ name, category: addCategory, quantity: Number(qty) || 1, price: Number(price) || 0 })
+            addShopping({
+              name,
+              category: addCategory,
+              quantity: Number(qty) || 1,
+              price: Number(price) || 0,
+              discount: Number(discount) || 0,
+            })
             setName('')
             setPrice('')
+            setDiscount('')
             setOpen(false)
-            toast.push('En la lista. Al comprarlo se suma al gasto')
+            toast.push('En la lista. Al comprarlo se suma lo que pagas')
+          }}
+        />
+      </Sheet>
+      <Sheet
+        open={orderOpen}
+        title="Cerrar pedido"
+        subtitle="Marca los pendientes de esta lista como comprados. El envío y el cupón del pedido se aplican una sola vez."
+        onClose={() => setOrderOpen(false)}
+      >
+        <Field
+          label={`Envío Uber Eats (${currency})`}
+          keyboardType="numeric"
+          placeholder="0"
+          value={delivery}
+          onChangeText={setDelivery}
+        />
+        <Field
+          label={`Cupón del pedido (${currency})`}
+          keyboardType="numeric"
+          placeholder="0"
+          value={orderCoupon}
+          onChangeText={setOrderCoupon}
+        />
+        <Text style={{ color: colors.mute, fontFamily: fonts.regular, lineHeight: 18 }}>
+          Vas a registrar {money(orderPay, currency)} en los gastos.
+        </Text>
+        <Button
+          title="Registrar pedido"
+          onPress={() => {
+            closeOrder({
+              itemIds: pendingInView.map((item) => item.id),
+              delivery: Number(delivery) || 0,
+              orderCoupon: Number(orderCoupon) || 0,
+            })
+            setDelivery('')
+            setOrderCoupon('')
+            setOrderOpen(false)
+            toast.push('Pedido cerrado. El gasto usa lo que pagaste')
           }}
         />
       </Sheet>
