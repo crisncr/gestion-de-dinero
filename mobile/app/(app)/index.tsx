@@ -91,20 +91,20 @@ export default function HomeScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Pressable
-            onPress={() => router.push('/notificaciones')}
+            onPress={() => router.push('/alertas')}
             style={{
               width: 44,
               height: 44,
               borderRadius: 16,
               backgroundColor: '#121412',
               borderWidth: 1,
-              borderColor: stats.upcoming.length ? 'rgba(85,214,160,0.35)' : colors.line,
+              borderColor: stats.notifications.length ? 'rgba(85,214,160,0.35)' : colors.line,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Bell size={16} color={stats.upcoming.length ? colors.mint : colors.cream} />
-            {stats.upcoming.length > 0 ? (
+            <Bell size={16} color={stats.notifications.length ? colors.mint : colors.cream} />
+            {stats.notifications.length > 0 ? (
               <View
                 style={{
                   position: 'absolute',
@@ -120,7 +120,7 @@ export default function HomeScreen() {
                 }}
               >
                 <Text style={{ color: colors.ink, fontSize: 8, fontFamily: fonts.bold }}>
-                  {stats.upcoming.length > 9 ? '9+' : stats.upcoming.length}
+                  {stats.notifications.length > 9 ? '9+' : stats.notifications.length}
                 </Text>
               </View>
             ) : null}

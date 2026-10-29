@@ -36,7 +36,7 @@ export default function NotificationsScreen() {
         action={<Button title="+ Aviso" size="sm" onPress={() => setOpen(true)} />}
       />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
-        {filterMonth || filterDay ? `Mostrando ${pickedLabel(filterMonth, filterDay)}.` : 'Aquí están todos, cada uno con su fecha.'}
+        {filterMonth || filterDay ? `Mostrando ${pickedLabel(filterMonth, filterDay)}.` : 'Estos son tus recordatorios, cada uno con su fecha.'}
       </Text>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Pressable onPress={() => setFilterOpen(true)}>

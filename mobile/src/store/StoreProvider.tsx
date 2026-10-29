@@ -15,7 +15,7 @@ import { hashPassword } from '../lib/crypto'
 import { isAdultBirthDate, UNDERAGE_MESSAGE } from '../lib/age'
 import { daysBetween, monthKey, todayISO } from '../lib/format'
 import { joinPetNames, latestSpeciesSupply, petIdsOf } from '../lib/pets'
-import { collectReminders } from '../lib/reminders'
+import { collectNotifications, collectReminders } from '../lib/reminders'
 import { inviteCode, uid } from '../lib/ids'
 import type {
   AppState,
@@ -101,6 +101,7 @@ export type HouseholdStats = {
   pendingShopping: number
   shoppingTotal: number
   upcoming: UpcomingItem[]
+  notifications: UpcomingItem[]
 }
 
 type StoreValue = {
@@ -212,6 +213,10 @@ function buildUpcoming(state: AppState, householdId: string): UpcomingItem[] {
   return collectReminders(state, householdId)
 }
 
+function buildNotifications(state: AppState, householdId: string): UpcomingItem[] {
+  return collectNotifications(state, householdId)
+}
+
 function computeStats(state: AppState): HouseholdStats {
   const household = state.households.find((h) => h.id === state.activeHouseholdId)
   if (!household) {
@@ -226,6 +231,7 @@ function computeStats(state: AppState): HouseholdStats {
       pendingShopping: 0,
       shoppingTotal: 0,
       upcoming: [],
+      notifications: [],
     }
   }
 
@@ -256,6 +262,7 @@ function computeStats(state: AppState): HouseholdStats {
     pendingShopping: pending.length,
     shoppingTotal: pending.reduce((s, i) => s + i.price * i.quantity, 0),
     upcoming: buildUpcoming(state, household.id),
+    notifications: buildNotifications(state, household.id),
   }
 }
 
