@@ -1399,15 +1399,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }))
       },
       removeTask: (id) => {
-        if (cloud) {
-          void saveCloud(`/tasks/${id}`, { method: 'DELETE' })
-          return
-        }
         const { household } = requireMembership(state)
+        const real = resolveId(id)
+        const removed = state.tasks.filter(
+          (t) => (t.id === id || t.id === real) && t.householdId === household.id,
+        )
         patch((prev) => ({
           ...prev,
-          tasks: prev.tasks.filter((t) => !(t.id === id && t.householdId === household.id)),
+          tasks: prev.tasks.filter((t) => t.id !== id && t.id !== real),
         }))
+        if (cloud) {
+          void saveCloud(`/tasks/${real}`, { method: 'DELETE' }).catch(() => {
+            patch((prev) => ({
+              ...prev,
+              tasks: [...removed, ...prev.tasks.filter((t) => !removed.some((row) => row.id === t.id))],
+            }))
+          })
+        }
       },
       addEvent: (input) => {
         if (cloud) {
