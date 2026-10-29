@@ -1,0 +1,16 @@
+{
+  "name": "Hogar360",
+  "short_name": "Hogar360",
+  "description": "Organización del hogar y finanzas personales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

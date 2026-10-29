@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String      @id @default(uuid())
+  name              String
+  email             String      @unique
+  passwordHash      String
+  emailVerified     Boolean     @default(false)
+  verifyCodeHash    String?
+  verifyExpires     DateTime?
+  resetCodeHash     String?
+  resetExpires      DateTime?
+  birthDate         DateTime?
+  termsVersion      String?
+  privacyVersion    String?
+  consentAt         DateTime?
+  activeHouseholdId String?
+  sessionVersion    Int         @default(0)
+  createdAt         DateTime    @default(now())
+  ownedHouseholds   Household[] @relation("HouseholdOwner")
+  memberships       Member[]
+}
+
+model Household {
+  id            String          @id @default(uuid())
+  name          String
+  monthlyBudget Float           @default(0)
+  currency      String          @default("CLP")
+  inviteCode    String          @unique
+  revision      Int             @default(0)
+  ownerId       String
+  owner         User            @relation("HouseholdOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt     DateTime        @default(now())
+  members       Member[]
+  transactions  Transaction[]
+  shopping      ShoppingItem[]
+  pets          Pet[]
+  petCares      PetCare[]
+  tasks         TaskItem[]
+  events        CalendarEvent[]
+}
+
+model Member {
+  id           String        @id @default(uuid())
+  householdId  String
+  household    Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId       String?
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name         String
+  email        String        @default("")
+  role         String
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+  tasks        TaskItem[]
+
+  @@index([householdId])
+}
+
+model Transaction {
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  memberId    String
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  type        String
+  amount      Float
+  category    String
+  description String    @default("")
+  date        String
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId, date])
+}
+
+model ShoppingItem {
+  id            String    @id @default(uuid())
+  householdId   String
+  household     Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name          String
+  category      String
+  quantity      Int       @default(1)
+  price         Float     @default(0)
+  purchased     Boolean   @default(false)
+  transactionId String?
+  createdAt     DateTime  @default(now())
+
+  @@index([householdId])
+}
+
+model Pet {
+  id          String         @id @default(uuid())
+  householdId String
+  household   Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  name        String
+  species     String
+  weight      Float          @default(0)
+  photo       String?        @db.Text
+  nextVaccine String?
+  notes       String         @default("")
+  createdAt   DateTime       @default(now())
+  weights     PetWeight[]
+  careLinks   PetCareOnPet[]
+
+  @@index([householdId])
+}
+
+model PetWeight {
+  id        String   @id @default(uuid())
+  petId     String
+  pet       Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  weight    Float
+  date      String
+  createdAt DateTime @default(now())
+}
+
+model PetCare {
+  id            String         @id @default(uuid())
+  householdId   String
+  household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  primaryPetId  String
+  kind          String
+  note          String         @default("")
+  date          String
+  amount        Float?
+  nextDate      String?
+  transactionId String?
+  createdAt     DateTime       @default(now())
+  pets          PetCareOnPet[]
+
+  @@index([householdId])
+}
+
+model PetCareOnPet {
+  careId String
+  petId  String
+  care   PetCare @relation(fields: [careId], references: [id], onDelete: Cascade)
+  pet    Pet     @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@id([careId, petId])
+}
+
+model TaskItem {
+  id               String    @id @default(uuid())
+  householdId      String
+  household        Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  title            String
+  assignedMemberId String?
+  assignedMember   Member?   @relation(fields: [assignedMemberId], references: [id], onDelete: SetNull)
+  dueDate          String?
+  priority         String    @default("medium")
+  done             Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
+  @@index([householdId])
+}
+
+model CalendarEvent {
+  id          String    @id @default(uuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  title       String
+  date        String
+  kind        String    @default("other")
+  note        String    @default("")
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId])
+}
