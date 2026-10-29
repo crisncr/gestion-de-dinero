@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BackHeader } from '../src/BackHeader'
 import { DatePickerField, datePresets } from '../src/DatePickerField'
-import { MonthBar } from '../src/MonthBar'
+import { MonthFilterSheet, pickedLabel } from '../src/MonthFilterSheet'
 import { Screen } from '../src/Screen'
 import { monthKey, shortDate, todayISO } from '../src/lib/format'
 import { useStore } from '../src/store/StoreProvider'
@@ -18,14 +18,21 @@ export default function TasksScreen() {
   const [priority, setPriority] = useState<Priority>('medium')
   const [dueDate, setDueDate] = useState(todayISO())
   const [assigned, setAssigned] = useState<string | null>(null)
-  const [month, setMonth] = useState(monthKey())
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterMonth, setFilterMonth] = useState<string | null>(null)
+  const [filterDay, setFilterDay] = useState<string | null>(null)
   const tasks = useMemo(
     () =>
       state.tasks
         .filter((t) => t.householdId === household?.id && !t.done)
-        .filter((t) => (t.dueDate ? t.dueDate.startsWith(month) : month === monthKey()))
+        .filter((t) => {
+          if (!filterMonth && !filterDay) return true
+          if (!t.dueDate) return false
+          if (filterDay) return t.dueDate === filterDay
+          return t.dueDate.startsWith(filterMonth as string)
+        })
         .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? '')),
-    [household?.id, month, state.tasks],
+    [filterDay, filterMonth, household?.id, state.tasks],
   )
 
   return (
@@ -37,16 +44,27 @@ export default function TasksScreen() {
             title="+ Tarea"
             size="sm"
             onPress={() => {
-              setDueDate(month === monthKey() ? todayISO() : `${month}-01`)
+              setDueDate(filterDay || (filterMonth ? `${filterMonth}-01` : todayISO()))
               setOpen(true)
             }}
           />
         }
       />
-      <MonthBar value={month} onChange={setMonth} />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
-        Una tarea se marca cuando se hizo. Un aviso es solo un recordatorio de fecha, como el pago de la luz.
+        {filterMonth || filterDay
+          ? `Mostrando ${pickedLabel(filterMonth, filterDay)}.`
+          : 'Una tarea se marca cuando se hizo. Un aviso es solo un recordatorio de fecha, como el pago de la luz.'}
       </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Pressable onPress={() => setFilterOpen(true)}>
+          <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver tareas por fecha</Text>
+        </Pressable>
+        {filterMonth || filterDay ? (
+          <Pressable onPress={() => { setFilterMonth(null); setFilterDay(null) }}>
+            <Text style={{ color: colors.mute, fontFamily: fonts.semibold }}>Ver todas</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <Card>
         {tasks.length === 0 ? (
           <Empty title="Nada por aquí" text="Crea una tarea del hogar con fecha, por ejemplo sacar la basura el jueves." />
@@ -104,7 +122,8 @@ export default function TasksScreen() {
           onPress={() => {
             if (title.trim().length < 2) return toast.push('Escribe la tarea')
             addTask({ title, assignedMemberId: assigned, dueDate, priority })
-            setMonth(monthKey(dueDate))
+            setFilterMonth(monthKey(dueDate))
+            setFilterDay(null)
             setTitle('')
             setDueDate(todayISO())
             setAssigned(null)
@@ -113,6 +132,16 @@ export default function TasksScreen() {
           }}
         />
       </Sheet>
+      <MonthFilterSheet
+        open={filterOpen}
+        title="Ver tareas por fecha"
+        initialMonth={filterMonth || monthKey()}
+        onClose={() => setFilterOpen(false)}
+        onAccept={(month, day) => {
+          setFilterMonth(month)
+          setFilterDay(day)
+        }}
+      />
     </Screen>
   )
 }

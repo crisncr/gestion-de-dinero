@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BackHeader } from '../src/BackHeader'
 import { DatePickerField, datePresets } from '../src/DatePickerField'
+import { MonthFilterSheet, pickedLabel } from '../src/MonthFilterSheet'
 import { Screen } from '../src/Screen'
 import { longDate, monthKey, monthTitle, todayISO } from '../src/lib/format'
 import { eventTone, useStore } from '../src/store/StoreProvider'
@@ -15,11 +16,17 @@ export default function NotificationsScreen() {
   const router = useRouter()
   const toast = useToast()
   const [open, setOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [filterMonth, setFilterMonth] = useState<string | null>(null)
+  const [filterDay, setFilterDay] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(todayISO())
   const items = useMemo(
-    () => [...stats.upcoming].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)),
-    [stats.upcoming],
+    () =>
+      [...stats.upcoming]
+        .filter((item) => (filterDay ? item.date === filterDay : filterMonth ? item.date.startsWith(filterMonth) : true))
+        .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)),
+    [filterDay, filterMonth, stats.upcoming],
   )
 
   return (
@@ -29,14 +36,24 @@ export default function NotificationsScreen() {
         action={<Button title="+ Aviso" size="sm" onPress={() => setOpen(true)} />}
       />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
-        Aquí están todos, cada uno con su fecha.
+        {filterMonth || filterDay ? `Mostrando ${pickedLabel(filterMonth, filterDay)}.` : 'Aquí están todos, cada uno con su fecha.'}
       </Text>
-      <Pressable onPress={() => router.push('/calendario')}>
-        <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver avisos por fecha</Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Pressable onPress={() => setFilterOpen(true)}>
+          <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver avisos por fecha</Text>
+        </Pressable>
+        {filterMonth || filterDay ? (
+          <Pressable onPress={() => { setFilterMonth(null); setFilterDay(null) }}>
+            <Text style={{ color: colors.mute, fontFamily: fonts.semibold }}>Ver todos</Text>
+          </Pressable>
+        ) : null}
+      </View>
       <Card>
         {items.length === 0 ? (
-          <Empty title="Sin avisos" text="Crea un aviso o registra la próxima vacuna, la comida o una tarea con fecha." />
+          <Empty
+            title="Sin avisos"
+            text={filterMonth || filterDay ? 'En esa fecha no hay avisos.' : 'Crea un aviso o registra la próxima vacuna, la comida o una tarea con fecha.'}
+          />
         ) : (
           items.map((item, index) => {
             const tone = eventTone(item.date)
@@ -103,6 +120,16 @@ export default function NotificationsScreen() {
           }}
         />
       </Sheet>
+      <MonthFilterSheet
+        open={filterOpen}
+        title="Ver avisos por fecha"
+        initialMonth={filterMonth || monthKey()}
+        onClose={() => setFilterOpen(false)}
+        onAccept={(month, day) => {
+          setFilterMonth(month)
+          setFilterDay(day)
+        }}
+      />
     </Screen>
   )
 }
