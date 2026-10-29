@@ -16,9 +16,8 @@ export function shiftMonth(key: string, delta: number) {
   return monthKey(addMonths(`${key}-01`, delta))
 }
 
-export function stampForMonth(key: string) {
-  if (key === monthKey()) return new Date().toISOString()
-  return new Date(`${key}-01T15:00:00.000Z`).toISOString()
+export function stampOnDate(iso: string) {
+  return new Date(`${iso.slice(0, 10)}T15:00:00.000Z`).toISOString()
 }
 
 export function parseISO(iso: string) {

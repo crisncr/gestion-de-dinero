@@ -1,11 +1,12 @@
 import { Check, Search } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import { DatePickerField, datePresets } from '../../src/DatePickerField'
 import { GlowPanel } from '../../src/GlowPanel'
 import { MonthBar } from '../../src/MonthBar'
 import { Screen } from '../../src/Screen'
 import { categoryLabel, shoppingCategories } from '../../src/data/catalog'
-import { money, monthKey, stampForMonth } from '../../src/lib/format'
+import { money, monthKey, stampOnDate, todayISO } from '../../src/lib/format'
 import { useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
 import { Button, Chip, Empty, Field, Progress, Sheet, useToast } from '../../src/ui'
@@ -28,6 +29,7 @@ export default function ShoppingScreen() {
   const [query, setQuery] = useState('')
   const [qty, setQty] = useState('1')
   const [price, setPrice] = useState('')
+  const [itemDate, setItemDate] = useState(todayISO())
   const currency = household?.currency ?? 'CLP'
   const addCategory = filter === 'all' ? 'mercado' : filter
   const [month, setMonth] = useState(monthKey())
@@ -58,7 +60,14 @@ export default function ShoppingScreen() {
             {household?.name ?? 'Tu hogar'} · {pendingInView.length} pendiente{pendingInView.length === 1 ? '' : 's'}
           </Text>
         </View>
-        <Button title="+ Producto" size="sm" onPress={() => setOpen(true)} />
+        <Button
+          title="+ Producto"
+          size="sm"
+          onPress={() => {
+            setItemDate(month === monthKey() ? todayISO() : `${month}-01`)
+            setOpen(true)
+          }}
+        />
       </View>
       <MonthBar value={month} onChange={setMonth} />
 
@@ -191,6 +200,7 @@ export default function ShoppingScreen() {
         <Field label="Producto" placeholder="Leche, pan, arena..." value={name} onChangeText={setName} />
         <Field label="Cantidad" keyboardType="numeric" value={qty} onChangeText={setQty} />
         <Field label={`Precio (${currency})`} keyboardType="numeric" value={price} onChangeText={setPrice} />
+        <DatePickerField label="Para qué mes" value={itemDate} onChange={setItemDate} presets={datePresets('event')} />
         <Button
           title="Guardar"
           onPress={() => {
@@ -200,12 +210,13 @@ export default function ShoppingScreen() {
               category: addCategory,
               quantity: Number(qty) || 1,
               price: Number(price) || 0,
-              createdAt: stampForMonth(month),
+              createdAt: stampOnDate(itemDate),
             })
+            setMonth(monthKey(itemDate))
             setName('')
             setPrice('')
             setOpen(false)
-            toast.push('En la lista. Al comprarlo se suma al gasto')
+            toast.push('En la lista de ese mes. Al comprarlo el gasto queda ahí')
           }}
         />
       </Sheet>

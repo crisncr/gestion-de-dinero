@@ -211,8 +211,11 @@ function userHouseholds(state: AppState, userId: string) {
 function buildUpcoming(state: AppState, householdId: string): UpcomingItem[] {
   const today = todayISO()
   const horizon = addDays(today, 90)
-  const items = collectReminders(state, householdId).filter((item) => item.date <= horizon)
-  const pending = state.shopping.filter((s) => s.householdId === householdId && !s.purchased)
+  const from = `${monthKey(today)}-01`
+  const items = collectReminders(state, householdId).filter((item) => item.date >= from && item.date <= horizon)
+  const pending = state.shopping.filter(
+    (s) => s.householdId === householdId && !s.purchased && s.createdAt.slice(0, 7) === monthKey(today),
+  )
   if (pending.length > 0) {
     items.push({
       id: 'shopping-pending',

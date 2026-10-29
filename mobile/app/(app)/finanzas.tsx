@@ -253,7 +253,13 @@ export default function FinanceScreen() {
         )}
       </View>
 
-      <TransactionSheet open={open} initialType={sheetType} initialDate={sheetDate} onClose={() => setOpen(false)} />
+      <TransactionSheet
+        open={open}
+        initialType={sheetType}
+        initialDate={sheetDate}
+        onClose={() => setOpen(false)}
+        onSaved={(date) => setMonth(monthKey(date))}
+      />
     </Screen>
   )
 }

@@ -130,7 +130,7 @@ export default function CalendarScreen() {
             addEvent({ title, date: selected, kind: 'other' as EventKind, note: '' })
             setTitle('')
             setOpen(false)
-            toast.push('Recordatorio creado')
+            toast.push('Aviso creado en ese día')
           }}
         />
       </Sheet>

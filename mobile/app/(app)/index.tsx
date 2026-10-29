@@ -212,7 +212,7 @@ export default function HomeScreen() {
         {[
           { label: 'Ingresos', value: money(stats.monthIncome, currency), color: colors.mint, onPress: () => router.push('/(app)/finanzas') },
           { label: 'Gastos', value: money(stats.monthExpenses, currency), color: colors.cream, onPress: () => router.push('/(app)/finanzas') },
-          { label: 'Ahorro', value: money(stats.savings, currency), color: colors.mint, onPress: () => router.push('/(app)/finanzas') },
+          { label: 'Sueldo', value: money(stats.monthSalary, currency), color: colors.mint, onPress: () => router.push('/(app)/finanzas') },
         ].map((item) => (
           <Pressable
             key={item.label}

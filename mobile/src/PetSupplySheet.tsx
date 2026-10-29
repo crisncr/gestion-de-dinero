@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Text } from 'react-native'
 import { DatePickerField, datePresets } from './DatePickerField'
 import { PetPicker } from './PetPicker'
-import { shortDate, todayISO } from './lib/format'
+import { monthTitle, monthKey, shortDate, todayISO } from './lib/format'
 import { defaultShareIds, petIdsOf } from './lib/pets'
 import { useStore } from './store/StoreProvider'
 import { colors, fonts } from './theme'
@@ -91,7 +91,7 @@ export function PetSupplySheet({
     const payload = {
       kind: kind as PetCareKind,
       note: product,
-      date: asNew ? todayISO() : boughtOn,
+      date: boughtOn || todayISO(),
       amount,
       nextDate: nextBuy || null,
       petIds: selected,
@@ -103,10 +103,7 @@ export function PetSupplySheet({
       toast.push(aviso ?? 'Compra actualizada')
     } else {
       addPetCare(selected[0], payload)
-      toast.push(
-        aviso ??
-          (selected.length > 1 ? 'Compra aplicada a las mascotas y al gasto' : 'Compra guardada en finanzas'),
-      )
+      toast.push(aviso ?? `Compra guardada en ${monthTitle(monthKey(payload.date))}`)
     }
     onClose()
   }
@@ -130,7 +127,7 @@ export function PetSupplySheet({
           : 'Si eliges cuándo se acaba, se crea un aviso para reponer.'}
         {editing
           ? ' El gasto se actualiza una sola vez.'
-          : ' El precio entra en Finanzas una sola vez, aunque sea para varios animales.'}
+          : ' El precio se descuenta en el mes de la fecha de compra, una sola vez.'}
       </Text>
       <Button title={editing ? 'Guardar cambios' : 'Guardar compra'} onPress={() => save(false)} />
       {editing ? (

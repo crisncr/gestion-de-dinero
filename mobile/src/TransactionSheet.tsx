@@ -4,7 +4,7 @@ import { Text, View } from 'react-native'
 import { CategoryPicker } from './CategoryPicker'
 import { DatePickerField, datePresets } from './DatePickerField'
 import { expenseCategories, incomeCategories } from './data/catalog'
-import { todayISO } from './lib/format'
+import { monthKey, monthTitle, todayISO } from './lib/format'
 import { useStore } from './store/StoreProvider'
 import { colors, fonts } from './theme'
 import type { TxType } from './types'
@@ -15,11 +15,13 @@ export function TransactionSheet({
   initialType = 'expense',
   initialDate,
   onClose,
+  onSaved,
 }: {
   open: boolean
   initialType?: TxType
   initialDate?: string
   onClose: () => void
+  onSaved?: (date: string) => void
 }) {
   const { addTransaction, members, membership } = useStore()
   const toast = useToast()
@@ -117,8 +119,10 @@ export function TransactionSheet({
             date,
             memberId: type === 'income' ? memberId : undefined,
           })
+          onSaved?.(date)
           onClose()
-          toast.push(type === 'expense' ? 'Gasto descontado de la cartera' : 'Ingreso sumado a la cartera')
+          const where = monthTitle(monthKey(date))
+          toast.push(type === 'expense' ? `Gasto descontado en ${where}` : `Ingreso sumado en ${where}`)
         }}
       />
     </Sheet>

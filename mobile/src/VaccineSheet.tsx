@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Text } from 'react-native'
 import { DatePickerField, datePresets } from './DatePickerField'
-import { shortDate, todayISO } from './lib/format'
+import { monthKey, monthTitle, shortDate, todayISO } from './lib/format'
 import { caresForPet, latestCare } from './lib/pets'
 import { useStore } from './store/StoreProvider'
 import { colors, fonts } from './theme'
@@ -80,11 +80,12 @@ export function VaccineSheet({
           if (latest) updatePetCare(latest.id, payload)
           else addPetCare(pet.id, payload)
           onClose()
+          const spent = amount > 0 ? ` El gasto quedó en ${monthTitle(monthKey(payload.date))}.` : ''
           toast.push(
             next
-              ? `Aviso creado: vacuna el ${shortDate(next)}`
+              ? `Aviso el ${shortDate(next)}.${spent}`
               : amount > 0
-                ? 'Vacuna y gasto registrados'
+                ? `Vacuna registrada.${spent}`
                 : 'Vacuna actualizada',
           )
         }}

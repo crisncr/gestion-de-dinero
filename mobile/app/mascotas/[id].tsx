@@ -7,7 +7,8 @@ import { PetSupplySheet } from '../../src/PetSupplySheet'
 import { Screen } from '../../src/Screen'
 import { VaccineSheet } from '../../src/VaccineSheet'
 import { careKinds } from '../../src/data/catalog'
-import { money, shortDate, todayISO } from '../../src/lib/format'
+import { DatePickerField, datePresets } from '../../src/DatePickerField'
+import { money, monthKey, monthTitle, shortDate, todayISO } from '../../src/lib/format'
 import { pickProfilePhoto } from '../../src/lib/pickPhoto'
 import {
   caresForPet,
@@ -60,6 +61,7 @@ export default function PetDetailScreen() {
   const [kind, setKind] = useState<PetCareKind>('paseo')
   const [note, setNote] = useState('')
   const [otherPrice, setOtherPrice] = useState('')
+  const [otherDate, setOtherDate] = useState(todayISO())
 
   if (!pet) {
     return (
@@ -310,6 +312,7 @@ export default function PetDetailScreen() {
         </View>
         <Field label="Nota" value={note} onChangeText={setNote} />
         <Field label={`Costo (${currency}), si hubo compra`} keyboardType="numeric" value={otherPrice} onChangeText={setOtherPrice} />
+        <DatePickerField label="Fecha" value={otherDate} onChange={setOtherDate} presets={datePresets('event')} />
         <Button
           title="Guardar"
           onPress={() => {
@@ -317,14 +320,19 @@ export default function PetDetailScreen() {
             addPetCare(pet.id, {
               kind,
               note,
-              date: todayISO(),
+              date: otherDate || todayISO(),
               amount: amount > 0 ? amount : null,
               petIds: [pet.id],
             })
             setNote('')
             setOtherPrice('')
+            setOtherDate(todayISO())
             setCOpen(false)
-            toast.push(amount > 0 ? 'Cuidado y gasto registrados' : 'Cuidado registrado')
+            toast.push(
+              amount > 0
+                ? `Gasto de mascota en ${monthTitle(monthKey(otherDate))}`
+                : 'Cuidado registrado en esa fecha',
+            )
           }}
         />
       </Sheet>

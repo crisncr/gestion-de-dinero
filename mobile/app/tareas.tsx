@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BackHeader } from '../src/BackHeader'
 import { DatePickerField, datePresets } from '../src/DatePickerField'
+import { MonthBar } from '../src/MonthBar'
 import { Screen } from '../src/Screen'
-import { shortDate, todayISO } from '../src/lib/format'
+import { monthKey, shortDate, todayISO } from '../src/lib/format'
 import { useStore } from '../src/store/StoreProvider'
 import { colors, fonts } from '../src/theme'
 import type { Priority } from '../src/types'
@@ -17,17 +18,32 @@ export default function TasksScreen() {
   const [priority, setPriority] = useState<Priority>('medium')
   const [dueDate, setDueDate] = useState(todayISO())
   const [assigned, setAssigned] = useState<string | null>(null)
+  const [month, setMonth] = useState(monthKey())
   const tasks = useMemo(
     () =>
       state.tasks
         .filter((t) => t.householdId === household?.id && !t.done)
+        .filter((t) => (t.dueDate ? t.dueDate.startsWith(month) : month === monthKey()))
         .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? '')),
-    [household?.id, state.tasks],
+    [household?.id, month, state.tasks],
   )
 
   return (
     <Screen>
-      <BackHeader title="Tareas" action={<Button title="+ Tarea" size="sm" onPress={() => setOpen(true)} />} />
+      <BackHeader
+        title="Tareas"
+        action={
+          <Button
+            title="+ Tarea"
+            size="sm"
+            onPress={() => {
+              setDueDate(month === monthKey() ? todayISO() : `${month}-01`)
+              setOpen(true)
+            }}
+          />
+        }
+      />
+      <MonthBar value={month} onChange={setMonth} />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
         Una tarea se marca cuando se hizo. Un aviso es solo un recordatorio de fecha, como el pago de la luz.
       </Text>
@@ -88,11 +104,12 @@ export default function TasksScreen() {
           onPress={() => {
             if (title.trim().length < 2) return toast.push('Escribe la tarea')
             addTask({ title, assignedMemberId: assigned, dueDate, priority })
+            setMonth(monthKey(dueDate))
             setTitle('')
             setDueDate(todayISO())
             setAssigned(null)
             setOpen(false)
-            toast.push('Tarea creada')
+            toast.push('Tarea creada en ese mes')
           }}
         />
       </Sheet>
