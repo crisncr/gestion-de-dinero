@@ -31,13 +31,14 @@ export function collectReminders(state: AppState, householdId: string): Upcoming
     })
   }
 
-  for (const product of state.shopping.filter((item) => item.householdId === householdId && !item.purchased)) {
+  const pendingShopping = state.shopping.filter((item) => item.householdId === householdId && !item.purchased)
+  if (pendingShopping.length > 0) {
     items.push({
-      id: `shopping-${product.id}`,
-      title: product.name,
-      date: product.createdAt?.slice(0, 10) || todayISO(),
+      id: 'shopping-pending',
+      title: 'Compras',
+      date: todayISO(),
       kind: 'shopping',
-      meta: 'Compra',
+      meta: `${pendingShopping.length} producto${pendingShopping.length === 1 ? '' : 's'}`,
       href: '/compras',
     })
   }
