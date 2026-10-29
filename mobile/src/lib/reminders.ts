@@ -1,4 +1,5 @@
 import type { AppState, UpcomingItem } from '../types'
+import { todayISO } from './format'
 import { joinPetNames, petIdsOf } from './pets'
 
 export function collectReminders(state: AppState, householdId: string): UpcomingItem[] {
@@ -17,15 +18,27 @@ export function collectReminders(state: AppState, householdId: string): Upcoming
     })
   }
 
-  for (const task of state.tasks.filter((t) => t.householdId === householdId && !t.done && t.dueDate)) {
+  for (const task of state.tasks.filter((t) => t.householdId === householdId && !t.done)) {
     const assignee = members.find((m) => m.id === task.assignedMemberId)
+    const who = assignee ? assignee.name : 'Sin asignar'
     items.push({
       id: `task-${task.id}`,
       title: task.title,
-      date: task.dueDate as string,
+      date: task.dueDate || todayISO(),
       kind: 'task',
-      meta: assignee ? `Tarea · ${assignee.name}` : 'Tarea sin asignar',
+      meta: task.dueDate ? `Tarea · ${who}` : `Tarea sin fecha · ${who}`,
       href: '/tareas',
+    })
+  }
+
+  for (const product of state.shopping.filter((item) => item.householdId === householdId && !item.purchased)) {
+    items.push({
+      id: `shopping-${product.id}`,
+      title: product.name,
+      date: product.createdAt?.slice(0, 10) || todayISO(),
+      kind: 'shopping',
+      meta: 'Compra',
+      href: '/compras',
     })
   }
 

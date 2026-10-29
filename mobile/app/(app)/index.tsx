@@ -281,10 +281,17 @@ export default function HomeScreen() {
         </View>
         {stats.upcoming.length === 0 ? (
           <Text style={{ color: colors.mute, paddingVertical: 16, fontFamily: fonts.regular, lineHeight: 20 }}>
-            Aún no hay avisos. La fecha de comida, arena o vacuna aparece aquí.
+            Avisos, compras y tareas aparecen aquí con su fecha.
           </Text>
         ) : (
-          stats.upcoming.slice(0, 5).map((item) => {
+          [...stats.upcoming]
+            .sort((a, b) => {
+              const aSoon = a.date >= todayISO() ? 0 : 1
+              const bSoon = b.date >= todayISO() ? 0 : 1
+              return aSoon - bSoon || a.date.localeCompare(b.date) || a.title.localeCompare(b.title)
+            })
+            .slice(0, 8)
+            .map((item) => {
             const tone = eventTone(item.date)
             const dot =
               item.kind === 'payment' ? colors.warn : item.kind === 'pet' ? '#A78BFA' : item.kind === 'shopping' ? colors.mint : '#5B8CFF'
