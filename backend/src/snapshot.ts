@@ -113,7 +113,6 @@ export async function buildSnapshot(userId: string) {
       category: row.category,
       quantity: row.quantity,
       price: row.price,
-      discount: row.discount,
       purchased: row.purchased,
       transactionId: row.transactionId,
       createdAt: iso(row.createdAt),

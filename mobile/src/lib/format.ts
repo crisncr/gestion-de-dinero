@@ -16,10 +16,6 @@ export function parseISO(iso: string) {
   return new Date(`${iso.slice(0, 10)}T12:00:00`)
 }
 
-export function shoppingLineTotal(price: number, quantity: number, discount = 0) {
-  return Math.max(0, Math.max(0, price) * Math.max(1, quantity) - Math.max(0, discount))
-}
-
 export function money(value: number, currency = 'CLP') {
   const meta = getCurrency(currency)
   const amount = Number.isFinite(value) ? value : 0

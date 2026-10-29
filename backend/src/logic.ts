@@ -5,10 +5,6 @@ export function inviteCode() {
   return Array.from(randomBytes(6), (b) => chars[b % chars.length]).join('')
 }
 
-export function shoppingLineTotal(price: number, quantity: number, discount = 0) {
-  return Math.max(0, Math.max(0, price) * Math.max(1, quantity) - Math.max(0, discount))
-}
-
 export function shoppingExpenseCategory(id: string) {
   if (id === 'mercado') return 'alimentacion'
   if (id === 'limpieza' || id === 'hogar') return 'hogar'

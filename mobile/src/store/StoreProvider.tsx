@@ -13,7 +13,7 @@ import { careKinds, shoppingExpenseCategory } from '../data/catalog'
 import { isCurrency } from '../data/currencies'
 import { hashPassword } from '../lib/crypto'
 import { isAdultBirthDate, UNDERAGE_MESSAGE } from '../lib/age'
-import { addDays, daysBetween, monthKey, shoppingLineTotal, todayISO } from '../lib/format'
+import { addDays, daysBetween, monthKey, todayISO } from '../lib/format'
 import { joinPetNames, latestSpeciesSupply, petIdsOf } from '../lib/pets'
 import { collectReminders } from '../lib/reminders'
 import { inviteCode, uid } from '../lib/ids'
@@ -64,7 +64,6 @@ type ShoppingInput = {
   category: string
   quantity: number
   price: number
-  discount?: number
 }
 
 type PetInput = {
@@ -152,7 +151,6 @@ type StoreValue = {
   toggleShopping: (id: string) => void
   removeShopping: (id: string) => void
   clearPurchased: () => void
-  closeOrder: (input: { itemIds: string[]; delivery: number; orderCoupon: number }) => void
   addPet: (input: PetInput) => {
     id: string
     inherited: Array<'comida' | 'arena'>
@@ -269,7 +267,7 @@ function computeStats(state: AppState): HouseholdStats {
     monthSalary,
     monthContributions,
     pendingShopping: pending.length,
-    shoppingTotal: pending.reduce((s, i) => s + shoppingLineTotal(i.price, i.quantity, i.discount ?? 0), 0),
+    shoppingTotal: pending.reduce((s, i) => s + i.price * i.quantity, 0),
     upcoming: buildUpcoming(state, household.id),
   }
 }
@@ -936,7 +934,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           category: input.category,
           quantity: Math.max(1, input.quantity),
           price: Math.max(0, input.price),
-          discount: Math.max(0, input.discount ?? 0),
           purchased: false,
           transactionId: null,
           createdAt: new Date().toISOString(),
@@ -961,7 +958,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                   category: input.category,
                   quantity: Math.max(1, input.quantity),
                   price: Math.max(0, input.price),
-                  discount: Math.max(0, input.discount ?? s.discount ?? 0),
                 }
               : s,
           ),
@@ -977,7 +973,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           )
           if (!item) return
           if (!item.purchased) {
-            const total = shoppingLineTotal(item.price, item.quantity, item.discount ?? 0)
+            const total = item.price * item.quantity
             const txId = total > 0 ? uid() : null
             patch((prev) => ({
               ...prev,
@@ -1018,7 +1014,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const item = state.shopping.find((s) => s.id === id && s.householdId === household.id)
         if (!item) return
         if (!item.purchased) {
-          const total = shoppingLineTotal(item.price, item.quantity, item.discount ?? 0)
+          const total = item.price * item.quantity
           const txId = total > 0 ? uid() : null
           patch((prev) => ({
             ...prev,
@@ -1082,83 +1078,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           transactions: prev.transactions.filter((t) => !txIds.has(t.id)),
         }))
         if (cloud) void saveCloud('/shopping/clear-purchased', { method: 'POST', body: {} })
-      },
-      closeOrder: ({ itemIds, delivery, orderCoupon }) => {
-        const { household, membership } = requireMembership(state)
-        const pending = state.shopping.filter(
-          (item) => itemIds.includes(item.id) && item.householdId === household.id && !item.purchased,
-        )
-        if (!pending.length) return
-        const ship = Math.max(0, delivery)
-        const coupon = Math.max(0, orderCoupon)
-        const rows = pending.map((item) => {
-          const amount = shoppingLineTotal(item.price, item.quantity, item.discount ?? 0)
-          return {
-            itemId: item.id,
-            amount,
-            txId: amount > 0 ? uid() : null,
-            category: shoppingExpenseCategory(item.category),
-            name: item.name,
-          }
-        })
-        let adjust = ship - coupon
-        const extraId = adjust > 0 ? uid() : null
-        if (adjust < 0) {
-          let left = -adjust
-          for (const row of [...rows].sort((a, b) => b.amount - a.amount)) {
-            if (left <= 0 || !row.txId) continue
-            const cut = Math.min(left, row.amount)
-            left -= cut
-            row.amount -= cut
-            if (row.amount <= 0) row.txId = null
-          }
-        }
-        const now = new Date().toISOString()
-        const date = todayISO()
-        patch((prev) => ({
-          ...prev,
-          shopping: prev.shopping.map((item) => {
-            const row = rows.find((entry) => entry.itemId === item.id)
-            return row ? { ...item, purchased: true, transactionId: row.txId } : item
-          }),
-          transactions: [
-            ...rows
-              .filter((row) => row.txId && row.amount > 0)
-              .map((row) => ({
-                id: row.txId as string,
-                householdId: household.id,
-                memberId: membership.id,
-                type: 'expense' as const,
-                amount: row.amount,
-                category: row.category,
-                description: row.name,
-                date,
-                createdAt: now,
-              })),
-            ...(extraId
-              ? [
-                  {
-                    id: extraId,
-                    householdId: household.id,
-                    memberId: membership.id,
-                    type: 'expense' as const,
-                    amount: ship - coupon,
-                    category: 'alimentacion',
-                    description: coupon > 0 ? 'Envío Uber Eats, con cupón del pedido' : 'Envío Uber Eats',
-                    date,
-                    createdAt: now,
-                  },
-                ]
-              : []),
-            ...prev.transactions,
-          ],
-        }))
-        if (cloud) {
-          void saveCloud('/shopping/close-order', {
-            method: 'POST',
-            body: { itemIds: pending.map((item) => resolveId(item.id)), delivery: ship, orderCoupon: coupon },
-          })
-        }
       },
       addPet: (input) => {
         const { household } = requireMembership(state)
