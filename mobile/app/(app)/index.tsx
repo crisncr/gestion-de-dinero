@@ -1,8 +1,7 @@
 import { useRouter } from 'expo-router'
-import { Bell, CalendarDays, ListTodo, PawPrint, Plus, ShoppingBasket, Wallet } from 'lucide-react-native'
+import { Bell, ListTodo, PawPrint, Plus, ShoppingBasket, Wallet } from 'lucide-react-native'
 import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { DatePickerField, datePresets } from '../../src/DatePickerField'
 import { GlowPanel } from '../../src/GlowPanel'
 import { Screen } from '../../src/Screen'
 import { TransactionSheet } from '../../src/TransactionSheet'
@@ -10,9 +9,9 @@ import { currencyCaption } from '../../src/data/currencies'
 import { longDate, money, monthKey, monthTitle, shortDate, todayISO } from '../../src/lib/format'
 import { eventTone, useStore } from '../../src/store/StoreProvider'
 import { colors, fonts } from '../../src/theme'
-import type { EventKind, TxType } from '../../src/types'
+import type { TxType } from '../../src/types'
 import { BrandLogo } from '../../src/BrandLogo'
-import { Avatar, Button, Field, Progress, Sheet, useToast } from '../../src/ui'
+import { Avatar, Button, Progress } from '../../src/ui'
 
 function greeting() {
   const hour = new Date().getHours()
@@ -23,14 +22,10 @@ function greeting() {
 
 export default function HomeScreen() {
   const router = useRouter()
-  const toast = useToast()
-  const { currentUser, household, stats, state, addEvent, refresh } = useStore()
+  const { currentUser, household, stats, state, refresh } = useStore()
   const currency = household?.currency ?? 'CLP'
   const [txOpen, setTxOpen] = useState(false)
   const [txType, setTxType] = useState<TxType>('expense')
-  const [eventOpen, setEventOpen] = useState(false)
-  const [eventTitle, setEventTitle] = useState('')
-  const [eventDate, setEventDate] = useState(todayISO())
 
   const openTx = (type: TxType) => {
     setTxType(type)
@@ -71,18 +66,11 @@ export default function HomeScreen() {
         onPress: () => router.push('/mascotas'),
       },
       {
-        label: 'Agenda',
-        text: stats.upcoming.length ? `${stats.upcoming.length} avisos` : 'Calendario',
-        icon: CalendarDays,
-        color: '#E0B15A',
-        onPress: () => router.push('/calendario'),
-      },
-      {
-        label: 'Aviso',
-        text: 'Nuevo recordatorio',
+        label: 'Avisos',
+        text: stats.upcoming.length ? `${stats.upcoming.length} con fecha` : 'Nada pendiente',
         icon: Bell,
         color: '#38BDF8',
-        onPress: () => setEventOpen(true),
+        onPress: () => router.push('/notificaciones'),
       },
     ],
     [pendingTasks, petsCount, router, stats.pendingShopping, stats.upcoming.length],
@@ -349,29 +337,6 @@ export default function HomeScreen() {
       </GlowPanel>
 
       <TransactionSheet open={txOpen} initialType={txType} onClose={() => setTxOpen(false)} />
-
-      <Sheet
-        open={eventOpen}
-        title="Nuevo aviso"
-        subtitle="Un recordatorio de fecha: pago de luz, vacuna, visita. Si hay que hacerlo y tacharlo, crea una tarea."
-        onClose={() => setEventOpen(false)}
-      >
-        <Field label="De qué quieres acordarte" placeholder="Pago de luz, supermercado..." value={eventTitle} onChangeText={setEventTitle} />
-        <DatePickerField label="Cuándo" value={eventDate} onChange={setEventDate} presets={datePresets('event')} />
-        <Button
-          title="Guardar aviso"
-          onPress={() => {
-            if (eventTitle.trim().length < 2) {
-              toast.push('Escribe un título')
-              return
-            }
-            addEvent({ title: eventTitle, date: eventDate, kind: 'other' as EventKind, note: '' })
-            setEventTitle('')
-            setEventOpen(false)
-            toast.push('Aviso creado')
-          }}
-        />
-      </Sheet>
     </Screen>
   )
 }

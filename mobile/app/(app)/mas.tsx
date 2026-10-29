@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { Bell, CalendarDays, ChevronRight, ListTodo, PawPrint, Settings } from 'lucide-react-native'
+import { Bell, ChevronRight, ListTodo, PawPrint, Settings } from 'lucide-react-native'
 import { Pressable, Text, View } from 'react-native'
 import { GlowPanel } from '../../src/GlowPanel'
 import { Screen } from '../../src/Screen'
@@ -29,16 +29,9 @@ export default function MoreScreen() {
       color: '#5B8CFF',
     },
     {
-      href: '/calendario',
-      label: 'Calendario',
-      text: 'Pagos y recordatorios',
-      icon: CalendarDays,
-      color: '#E0B15A',
-    },
-    {
       href: '/notificaciones',
       label: 'Avisos',
-      text: avisos ? `${avisos} por atender` : 'Todo al día',
+      text: avisos ? `${avisos} con fecha` : 'Todo al día',
       icon: Bell,
       color: '#38BDF8',
     },

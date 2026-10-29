@@ -1,16 +1,22 @@
 import { useRouter } from 'expo-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { BackHeader } from '../src/BackHeader'
+import { DatePickerField, datePresets } from '../src/DatePickerField'
 import { Screen } from '../src/Screen'
-import { longDate, monthKey, monthTitle } from '../src/lib/format'
+import { longDate, monthKey, monthTitle, todayISO } from '../src/lib/format'
 import { eventTone, useStore } from '../src/store/StoreProvider'
 import { colors, fonts } from '../src/theme'
-import { Card, Empty } from '../src/ui'
+import type { EventKind } from '../src/types'
+import { Button, Card, Empty, Field, Sheet, useToast } from '../src/ui'
 
 export default function NotificationsScreen() {
-  const { stats } = useStore()
+  const { stats, addEvent } = useStore()
   const router = useRouter()
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [date, setDate] = useState(todayISO())
   const items = useMemo(
     () => [...stats.upcoming].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title)),
     [stats.upcoming],
@@ -18,13 +24,19 @@ export default function NotificationsScreen() {
 
   return (
     <Screen>
-      <BackHeader title="Avisos" />
+      <BackHeader
+        title="Avisos"
+        action={<Button title="+ Aviso" size="sm" onPress={() => setOpen(true)} />}
+      />
       <Text style={{ color: colors.mute, fontFamily: fonts.regular }}>
-        Están todos juntos. Cada uno dice el día, sin cambiar de mes.
+        Aquí están todos, cada uno con su fecha. El calendario solo muestra un día.
       </Text>
+      <Pressable onPress={() => router.push('/calendario')}>
+        <Text style={{ color: colors.mint, fontFamily: fonts.semibold }}>Ver el mes en el calendario</Text>
+      </Pressable>
       <Card>
         {items.length === 0 ? (
-          <Empty title="Sin avisos" text="Cuando programes una vacuna, una tarea o un recordatorio, aparece aquí con su fecha." />
+          <Empty title="Sin avisos" text="Crea un aviso o registra la próxima vacuna, la comida o una tarea con fecha." />
         ) : (
           items.map((item, index) => {
             const tone = eventTone(item.date)
@@ -68,6 +80,29 @@ export default function NotificationsScreen() {
           })
         )}
       </Card>
+      <Sheet
+        open={open}
+        title="Nuevo aviso"
+        subtitle="Un recordatorio de fecha. Si hay que hacerlo y tacharlo, crea una tarea."
+        onClose={() => setOpen(false)}
+      >
+        <Field label="De qué quieres acordarte" placeholder="Pago de luz, supermercado..." value={title} onChangeText={setTitle} />
+        <DatePickerField label="Cuándo" value={date} onChange={setDate} presets={datePresets('event')} />
+        <Button
+          title="Guardar aviso"
+          onPress={() => {
+            if (title.trim().length < 2) {
+              toast.push('Escribe un título')
+              return
+            }
+            addEvent({ title, date, kind: 'other' as EventKind, note: '' })
+            setTitle('')
+            setDate(todayISO())
+            setOpen(false)
+            toast.push('Aviso creado')
+          }}
+        />
+      </Sheet>
     </Screen>
   )
 }
