@@ -8,7 +8,8 @@
     "scheme": "casa360",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crisncr.casa360"
     },
     "android": {
       "usesCleartextTraffic": true,

@@ -1,0 +1,59 @@
+name: IPA iOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Bajar el código
+        uses: actions/checkout@v5
+
+      - name: Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar la app
+        run: npm ci
+
+      - name: Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Compilar el IPA
+        run: eas build --platform ios --profile preview --non-interactive --wait --json > ipa-build.json
+
+      - name: Descargar el IPA
+        run: |
+          node -e "const b=JSON.parse(require('fs').readFileSync('ipa-build.json','utf8')); const row=Array.isArray(b)?b[0]:b; if(!row.artifacts||!row.artifacts.buildUrl){console.error(row); process.exit(1)} require('fs').writeFileSync('ipa-url.txt', row.artifacts.buildUrl)"
+          curl -L "$(cat ipa-url.txt)" -o casa360.ipa
+
+      - name: Guardar el IPA en la ejecución
+        uses: actions/upload-artifact@v4
+        with:
+          name: casa360-ipa
+          path: mobile/casa360.ipa
+          if-no-files-found: error
+
+      - name: Publicar el IPA en GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ipa-${{ github.run_number }}
+          name: Casa360 ${{ github.run_number }}
+          files: mobile/casa360.ipa
+          prerelease: true
+          make_latest: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

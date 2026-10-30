@@ -20,6 +20,9 @@ backend/.env
 mobile/.env
 backend/ca.pem
 *.pem
+*.ipa
+*.mobileprovision
+*.p12
 
 # Editor directories and files
 .vscode/*
