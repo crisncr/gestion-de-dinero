@@ -8,7 +8,8 @@ permissions:
 
 jobs:
   ipa:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: mobile
@@ -19,26 +20,62 @@ jobs:
       - name: Node
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      - name: Comprobar la dirección de la API
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+        run: |
+          if [ -z "$EXPO_PUBLIC_API_URL" ]; then
+            echo "Falta el secreto EXPO_PUBLIC_API_URL."
+            exit 1
+          fi
 
       - name: Instalar la app
         run: npm ci
 
-      - name: Expo
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Crear el proyecto de iPhone
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+          CI: "1"
+        run: npx expo prebuild --platform ios --non-interactive --no-install
 
-      - name: Compilar el IPA
-        run: eas build --platform ios --profile preview --non-interactive --wait --json > ipa-build.json
-
-      - name: Descargar el IPA
+      - name: Instalar dependencias nativas
         run: |
-          node -e "const b=JSON.parse(require('fs').readFileSync('ipa-build.json','utf8')); const row=Array.isArray(b)?b[0]:b; if(!row.artifacts||!row.artifacts.buildUrl){console.error(row); process.exit(1)} require('fs').writeFileSync('ipa-url.txt', row.artifacts.buildUrl)"
-          curl -L "$(cat ipa-url.txt)" -o casa360.ipa
+          export LANG=en_US.UTF-8
+          cd ios
+          pod install
+
+      - name: Compilar
+        run: |
+          find ios -name project.pbxproj -print0 | xargs -0 sed -i '' \
+            -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g'
+          WS=$(find ios -maxdepth 2 -name '*.xcworkspace' -not -path '*.xcodeproj/*' | head -n 1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          xcodebuild \
+            -workspace "$WS" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/ios-build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Armar el IPA
+        run: |
+          APP=$(find ios-build/Build/Products -name '*.app' -path '*iphoneos*' | head -n 1)
+          test -n "$APP"
+          codesign --force --deep --sign - "$APP"
+          rm -rf Payload
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -r casa360.ipa Payload
 
       - name: Guardar el IPA en la ejecución
         uses: actions/upload-artifact@v4
