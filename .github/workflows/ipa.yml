@@ -43,12 +43,24 @@ jobs:
         run: npx expo prebuild --platform ios --non-interactive --no-install
 
       - name: Instalar dependencias nativas
+        env:
+          EXPO_USE_PRECOMPILED_MODULES: "0"
         run: |
           export LANG=en_US.UTF-8
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("ios/Podfile.properties.json")
+          data = json.loads(path.read_text()) if path.exists() else {}
+          data["EXPO_USE_PRECOMPILED_MODULES"] = "false"
+          path.write_text(json.dumps(data, indent=2) + "\n")
+          PY
           cd ios
           pod install
 
       - name: Compilar
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
         run: |
           find ios -name project.pbxproj -print0 | xargs -0 sed -i '' \
             -e 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g'
