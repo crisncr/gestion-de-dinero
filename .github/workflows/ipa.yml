@@ -71,7 +71,6 @@ jobs:
         run: |
           APP=$(find ios-build/Build/Products -name '*.app' -path '*iphoneos*' | head -n 1)
           test -n "$APP"
-          codesign --force --deep --sign - "$APP"
           rm -rf Payload
           mkdir Payload
           cp -R "$APP" Payload/
